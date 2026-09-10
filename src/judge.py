@@ -18,9 +18,29 @@ import re
 RUBRIC_DIMENSIONS = ["correctness", "relevance", "grounding", "completeness", "tone", "hallucination"]
 
 
+_CLAIM_PATTERN = re.compile(r"\$\d[\d,.]*|\b\d+%|\b\d+\s?(days?|hours?|minutes?|weeks?|months?)\b", re.I)
+
+
+def _unsupported_claims(draft_reply: str, evidence_text: str) -> list[str]:
+    """Numbers/amounts/durations in the reply not found anywhere in the
+    evidence text -- a specific, checkable proxy for invented facts. NOTE:
+    for the extractive generator this is close to vacuous (the reply IS the
+    evidence, so nothing is ever "unsupported" by construction). It becomes
+    meaningful once paraphrasing generation (the LLM path) is actually run,
+    since paraphrasing is where a model can introduce a number/date/promise
+    that wasn't in the source material. Kept here, run now, and disclosed as
+    weak evidence in the current (extractive-only) results."""
+    claims = _CLAIM_PATTERN.findall(draft_reply)
+    reply_claims = set(re.findall(r"\$\d[\d,.]*|\b\d+%|\b\d+\s?\w+", draft_reply, re.I))
+    return [c for c in reply_claims if c.lower() not in evidence_text]
+
+
 def heuristic_judge(customer_msg: str, draft_reply: str, evidence: list[dict]) -> dict:
     if not draft_reply:
-        return {"grounded_score": 0, "length_ok": False, "overlap_score": 0.0, "method": "heuristic"}
+        return {
+            "grounded_score": 0, "length_ok": False, "overlap_score": 0.0,
+            "unsupported_claims": [], "method": "heuristic",
+        }
 
     evidence_text = " ".join(e["support_reply"] for e in evidence).lower()
     reply_words = set(re.findall(r"\w+", draft_reply.lower()))
@@ -28,10 +48,12 @@ def heuristic_judge(customer_msg: str, draft_reply: str, evidence: list[dict]) -
     overlap = len(reply_words & evidence_words) / max(len(reply_words), 1)
 
     length_ok = 10 <= len(draft_reply.split()) <= 80
+    unsupported = _unsupported_claims(draft_reply, evidence_text)
     return {
         "grounded_score": 1 if overlap > 0.25 else 0,
         "length_ok": length_ok,
         "overlap_score": round(overlap, 3),
+        "unsupported_claims": unsupported,
         "method": "heuristic",
     }
 

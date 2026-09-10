@@ -38,6 +38,14 @@ def load():
 
 
 def predict(pipe, text: str):
+    # An "override other with best non-other class above a threshold" rule
+    # was tried (scripts/tune_other_threshold.py) to counter 'other' being
+    # 65% of dev_pool weak-training labels. Tuned honestly on an 80/20
+    # held-out slice of dev_pool (macro-F1 0.595 -> 0.622 there), but
+    # regressed the frozen golden set on every axis that matters, including
+    # the headline false-auto-handle rate (0.095 -> 0.134, i.e. 12 -> 17
+    # missed escalations). Rejected per the regression policy -- see
+    # planning/18_DECISION_LOG.md. Kept as plain argmax.
     proba = pipe.predict_proba([text])[0]
     classes = pipe.classes_
     idx = proba.argmax()

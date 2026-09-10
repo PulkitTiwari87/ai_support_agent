@@ -1,6 +1,6 @@
-pandas
-pyarrow
-scikit-learn
-numpy
-anthropic
-pytest
+pandas>=2.0,<3.0
+pyarrow>=14.0
+scikit-learn==1.9.1
+numpy>=1.26,<2.3
+anthropic>=0.40
+pytest>=7.0

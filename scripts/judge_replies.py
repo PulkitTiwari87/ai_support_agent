@@ -32,6 +32,7 @@ def main():
     method = "llm" if used_llm else "heuristic"
     n_grounded_scored = sum(s.get("grounded_score", 0) for s in scores if "grounded_score" in s)
     n_length_ok = sum(1 for s in scores if s.get("length_ok"))
+    n_with_unsupported_claims = sum(1 for s in scores if s.get("unsupported_claims"))
 
     summary = {
         "judge_method_actually_used": method,
@@ -40,6 +41,13 @@ def main():
         "n": len(scores),
         "heuristic_grounded_count": n_grounded_scored if method == "heuristic" else None,
         "heuristic_length_ok_count": n_length_ok if method == "heuristic" else None,
+        "heuristic_replies_with_unsupported_claims": n_with_unsupported_claims if method == "heuristic" else None,
+        "unsupported_claims_caveat": (
+            "This check is close to vacuous for the current extractive generator "
+            "(the reply IS the evidence by construction) -- it becomes a real "
+            "signal only once the LLM paraphrasing path actually runs. See "
+            "src/judge.py::_unsupported_claims."
+        ) if method == "heuristic" else None,
     }
     print(json.dumps(summary, indent=2))
     with open("data/processed/judge_results.json", "w") as f:

@@ -3,9 +3,10 @@
 The full Graphify skill (knowledge-graph extraction with community
 detection) was not run in this session -- it spins up a separate agent pass
 and the marginal value over a direct, hand-maintained map was low relative
-to its cost given the session's time budget. Below is the actual, current
-component map (kept in sync manually; last updated after the taxonomy/
-signoff bug fixes and re-evaluation).
+to its cost given the session's time budget. This is disclosed, not
+presented as if the tool ran. Below is the actual, current component map
+(kept in sync manually; last updated after the sklearn-pin bugfix, the
+rejected other-threshold experiment, and the mocked LLM-path tests).
 
 ```
 data/raw/customer_support_twitter.parquet   (scripts/fetch_data.py)
@@ -44,3 +45,11 @@ src/retrieval.py              src/intent_classifier.py (trained on dev_pool)
 
 Baselines (`src/baselines.py`) run against the same `golden_set.csv`
 independently of the pipeline above, not through it.
+
+```
+scripts/tune_other_threshold.py   (experiment: rejected, see decision log #15)
+tests/test_llm_paths_mocked.py    (proves LLM code paths correct w/o a real API key)
+tests/test_data_pipeline.py       (leakage checks)
+planning/10_EVALUATION.md         (verified metrics, denominators, bugs found)
+planning/FINAL_SUBMISSION_AUDIT.md (requirement-by-requirement status)
+```

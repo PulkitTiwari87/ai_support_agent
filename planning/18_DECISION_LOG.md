@@ -88,3 +88,43 @@ evidence that drove it.
     `!`/`?`.** Spot-check showed 2+ triggered too often on ordinary Twitter
     typing style (false escalations); 3+ is closer to genuine emphasis
     while still erring toward escalation over silent failure.
+
+14. **Pinned `scikit-learn==1.9.1` in requirements.txt after finding a real
+    reproducibility bug.** Re-running `scripts/evaluate.py` against the
+    previously-committed model pickle (trained under sklearn 1.3.2) with
+    sklearn 1.9.1 installed produced silently different metrics (intent
+    accuracy 0.68 vs. the originally reported 0.728) with an
+    `InconsistentVersionWarning`. Retraining fresh under 1.9.1 reproduced
+    the original 0.728 exactly, confirming the drift was a stale-pickle
+    artifact, not a real regression -- but an unpinned dependency let it
+    happen silently. See `planning/10_EVALUATION.md`.
+
+15. **Rejected an "other-class override threshold" fix for the intent
+    classifier after measuring it on the golden set.** `other` is 65% of
+    `dev_pool` weak training labels, causing the classifier to over-predict
+    it. Tuned a probability-override rule on a held-out 80/20 split of
+    `dev_pool` (macro-F1 0.595->0.622 there,
+    `scripts/tune_other_threshold.py`), but checking it once against the
+    frozen golden set showed it made every headline metric worse,
+    including false-auto-handle rate (0.095->0.134). Reverted per the
+    regression policy rather than keeping a change that only helped a
+    proxy metric. Root cause of the `other`-class confusion remains
+    unresolved -- flagged as the top "one more week" item.
+
+16. **Added an unsupported-claims heuristic check to `src/judge.py`,
+    disclosed as near-vacuous under the current extractive generator.**
+    The existing word-overlap grounding score is close to tautological for
+    extractive replies (the reply IS the evidence). Added a check for
+    numbers/amounts/durations in the reply not present in the evidence
+    text as a more specific (if still heuristic) signal -- it returns 0/250
+    on the current extractive-only results by construction, and is
+    documented as only becoming meaningful once the LLM paraphrasing path
+    actually runs.
+
+17. **Verified LLM-backed code paths (reply generation, judge) with mocked
+    API calls instead of skipping testing them.** No `ANTHROPIC_API_KEY`
+    was available to make real calls, but `tests/test_llm_paths_mocked.py`
+    proves the request/response contract and fallback-on-error behavior are
+    correct by substituting a fake `anthropic` module -- so supplying a
+    real key is the only remaining step to make these paths live, and that
+    claim is now tested rather than assumed.

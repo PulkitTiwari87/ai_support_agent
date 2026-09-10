@@ -3,5 +3,7 @@
   "note": "LLM judge requires ANTHROPIC_API_KEY; not configured in this environment -- heuristic judge used instead.",
   "n": 250,
   "heuristic_grounded_count": 250,
-  "heuristic_length_ok_count": 247
+  "heuristic_length_ok_count": 247,
+  "heuristic_replies_with_unsupported_claims": 0,
+  "unsupported_claims_caveat": "This check is close to vacuous for the current extractive generator (the reply IS the evidence by construction) -- it becomes a real signal only once the LLM paraphrasing path actually runs. See src/judge.py::_unsupported_claims."
 }

@@ -6,6 +6,18 @@ golden set). Regenerate with `python scripts/evaluate.py`.
 
 ## Top failure modes (real, inspected examples)
 
+**Update (verification pass)**: re-measured precisely -- **100% of escalation
+errors (56/56: 12 false-auto-handle + 44 false-escalation) involve `other`
+on the gold-label side, the predicted side, or both** (more precise than
+the earlier ~85% estimate). Escalation rate by gold intent is 1.0 for
+`other` and near-0 for every real class, so this is close to a clean,
+single-cause failure mode. An experiment to fix it (probability-override
+threshold, tuned on held-out `dev_pool`) was tried and **rejected** after
+it made every golden-set metric worse, including the headline
+false-auto-handle rate (0.095->0.134) -- see
+`planning/18_DECISION_LOG.md` #15 and `planning/10_EVALUATION.md`. The root
+cause (65% `other` share in weak training labels) remains unresolved.
+
 ### 1. Nearly all escalation errors (both directions) trace to one root cause: intent collapsing to `other`
 - **13 false-auto-handle cases** (system says handle, gold says escalate):
   every single one has `pred_intent` != `other` while `gold_intent == other`
