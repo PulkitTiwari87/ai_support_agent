@@ -1,0 +1,51 @@
+# Requirement Traceability
+
+Every row maps an assignment requirement to what actually implements it,
+what actually tests/verifies it, and where it's documented. "Evidence" means
+a command you can run or a file you can open, not a claim. Where a
+requirement was not fully executable in this environment, the row says so
+explicitly rather than being marked done.
+
+| Requirement | Implementation | Test / Evidence | Documentation |
+|---|---|---|---|
+| Reproducible dataset pipeline | `scripts/fetch_data.py` (public HF mirror, no auth), `scripts/process_data.py` (parse/dedupe/split) | `python scripts/run_all.py` step 1-2; `tests/test_data_pipeline.py` | README "Reproducibility"; `planning/18_DECISION_LOG.md` #1 |
+| Brand selection (evidence-based) | `scripts/select_brand.py` scores 10 candidates on volume/resolution/diversity | `data/processed/brand_candidates.csv` (real scores, not assumed) | `planning/03_BRAND_SELECTION.md` |
+| Small, defensible intent taxonomy | `src/taxonomy.py::classify_intent`, 6 intents derived from reading real `dev_pool` samples | `tests/test_taxonomy.py` (9 tests) | `planning/04_INTENT_TAXONOMY.md`; README "Intent taxonomy" |
+| Conversation-level train/dev/eval/retrieval split, no leakage | `scripts/process_data.py` splits on `conversation_id` before pairs | `tests/test_data_pipeline.py::test_no_conversation_leakage_*` (2 tests); manual exact+normalized duplicate audit in `planning/10_EVALUATION.md` | `planning/05_GOLDEN_SET.md`, `planning/10_EVALUATION.md` |
+| Golden set, 150-250 examples | `scripts/build_golden_set.py` -> `data/processed/golden_set.csv`, 250 rows | `tests/test_data_pipeline.py::test_golden_set_size_in_target_range`, `test_golden_set_no_duplicate_conversations` | `planning/05_GOLDEN_SET.md` |
+| Golden-set labeling provenance disclosed (not fabricated human labels) | Labels from `src/taxonomy.py` regex rules, spot-checked by hand (40-example sample, one real bug found and fixed) | `data/processed/golden_set.csv` column `label_method=rule_based_v1` | `planning/05_GOLDEN_SET.md` explicitly states this is not independent human annotation |
+| Two baselines, same eval set/metrics as system | `src/baselines.py::baseline_trivial`, `baseline_simple` (deliberately distinct keyword logic from the golden labeler to avoid circularity) | `scripts/evaluate.py` runs all three against identical `golden_set.csv` with shared `compute_metrics()` | README "Baselines"; `planning/09` decisions folded into `planning/18_DECISION_LOG.md` #11 |
+| Intent classifier | `src/intent_classifier.py`: TF-IDF word+char n-grams + Logistic Regression, trained on `dev_pool` (disjoint from golden set) | `python scripts/run_all.py`; per-class precision/recall/F1 and confusion matrix in `planning/10_EVALUATION.md` | `planning/18_DECISION_LOG.md` #6, #18 |
+| Minority-class performance analyzed | Per-class training counts (`feature_request_feedback` n=11, `content_availability` n=19) identified as root cause of `other`-class confusion | `planning/13_FAILURE_ANALYSIS.md` failure mode #1; `scripts/experiment_char_ngrams.py` | `planning/18_DECISION_LOG.md` #21 |
+| Historical retrieval with inspectable evidence | `src/retrieval.py`: TF-IDF cosine similarity over 36,004-pair corpus; every prediction carries `evidence` with source text + similarity score | `src/pipeline.py::Pipeline.run()` returns `evidence` field; `tests/` exercise this via `reply_generation` tests | README "Historical grounding"; `planning/13_FAILURE_ANALYSIS.md` failure mode #4 |
+| Grounded reply generation, refuses on weak evidence | `src/reply_generation.py::generate_extractive` (default) and `generate_llm` (used if `ANTHROPIC_API_KEY` set); both return `grounded=False` below `LOW_EVIDENCE_SIMILARITY=0.12` | `tests/test_reply_generation.py` (4 tests); `tests/test_llm_paths_mocked.py` (6 tests, mocked API) | README "Reply quality"/"Limitations"; `planning/13_FAILURE_ANALYSIS.md` failure mode #3 |
+| Escalation: decision + reason | `src/taxonomy.py::classify_escalation` returns `(bool, reason)`; reasons include `account_security`, `billing_dispute`, `explicit_human_request`, `high_distress`, `low_retrieval_confidence`, `unclassified_intent` | `tests/test_taxonomy.py` (5 escalation tests) | README "Escalation" |
+| Escalation prioritizes avoiding false auto-handle | Escalation defaults to True on `other`/low-confidence rather than requiring a positive match | `planning/10_EVALUATION.md` shows false-auto-handle as the explicit headline metric, prioritized over false-escalation | README "Headline result" |
+| Automated evaluation harness (no hand-copied numbers) | `scripts/evaluate.py` computes all metrics from `sklearn.metrics` + custom false-auto-handle/false-escalation counts, writes `data/processed/eval_results.json` | `python scripts/evaluate.py`; every number in README traces to this file | `planning/10_EVALUATION.md` |
+| Per-intent metrics + confusion matrix | `scripts/evaluate.py::compute_metrics` includes `intent_confusion_matrix` per system | `data/processed/eval_results.json` | `planning/10_EVALUATION.md` |
+| LLM-as-judge pathway | `src/judge.py::llm_judge` (rubric: correctness/relevance/grounding/completeness/tone/hallucination), gated on `ANTHROPIC_API_KEY` | `tests/test_llm_paths_mocked.py::test_llm_judge_*` (2 tests, mocked -- no live call, no key available) | `planning/12_HUMAN_VALIDATION.md`, `planning/18_DECISION_LOG.md` #17; **NOT executed live -- documented blocker** |
+| Heuristic judge fallback, disclosed as non-equivalent | `src/judge.py::heuristic_judge` (word-overlap + length + unsupported-claims checks) | `scripts/judge_replies.py` -> `data/processed/judge_results.json`, labeled `judge_method_actually_used: "heuristic"` | README "Reply quality"; `planning/13_FAILURE_ANALYSIS.md` failure mode #3 |
+| Human validation workflow | Annotation schema, rubric, sample-selection, and agreement-calculation steps fully specified | N/A -- workflow only, not data | `planning/12_HUMAN_VALIDATION.md`; **NOT executed -- no annotators available, explicitly disclosed, zero fabricated ratings** |
+| Failure analysis: top 5 real modes with evidence | 5 modes, each with quoted real `pair_id` examples, root cause, and fix attempts | `data/processed/system_predictions.csv` is the source data for every quoted example | `planning/13_FAILURE_ANALYSIS.md` |
+| Experiments use dev data, not repeated golden-set tuning | Two experiments (`scripts/tune_other_threshold.py`, `scripts/experiment_char_ngrams.py`) tuned on an 80/20 held-out `dev_pool` split; each checked against the golden set exactly once | `planning/10_EVALUATION.md` "What improve the largest failure mode produced" section documents both checks and their outcomes (one rejected, one kept) | `planning/18_DECISION_LOG.md` #15, #18 |
+| Headline metric reflects actual assignment risk | False-auto-handle rate chosen over raw accuracy, per the assignment's explicit framing that auto-handling a should-escalate case is the worst failure | `data/processed/eval_results.json::false_auto_handle_rate` | README "Headline result" |
+| "What is misleading about my headline number?" | 4 concrete, evidence-backed caveats (rule-derived labels, single root-cause concentration, tautological groundedness metric, single-brand/era scope) | -- | README "What's misleading about the headline number" (mandatory section, present) |
+| Reproducibility: single command, correct interpreter, no hidden state | `scripts/run_all.py` uses `sys.executable` for every step (fixed a real bug where a bare `"python"` resolved to an unrelated system interpreter with mismatched dependencies) | Timed at ~21s from clean state, zero dependency-version warnings, byte-identical output across reruns | README "Reproducibility"; `planning/10_EVALUATION.md` documents both reproducibility bugs found and fixed |
+| Dependencies pinned | `requirements.txt` pins `scikit-learn==1.9.1` after a version-drift bug was found | -- | `planning/18_DECISION_LOG.md` #14 |
+| Tests cover the full pipeline | 24 tests: taxonomy (9), reply generation (4), data pipeline/leakage (5), LLM mocked contracts (6) | `pytest tests/` -- 24/24 passing, reverified after every change across 3 sessions | -- |
+| No secrets committed | No API keys/tokens anywhere in the repo; `ANTHROPIC_API_KEY` is read from the environment only, never hardcoded | Repeated `grep` secret scans across sessions, all clean | README "Reproducibility" |
+| No unnecessary dependencies | `requirements.txt`: pandas, pyarrow, scikit-learn, numpy, anthropic, pytest -- each with a concrete, load-bearing use | -- | `planning/18_DECISION_LOG.md` #7 (rejected embeddings/vector DB as unnecessary at this corpus size) |
+| Decision log, 10-15 meaningful decisions | 21 decisions across 3 sessions, each with alternatives/rationale/evidence/tradeoff | -- | `planning/18_DECISION_LOG.md` |
+| Graphify / project map current | Hand-maintained (full Graphify tool not run, disclosed as such every time) | -- | `planning/19_GRAPHIFY_MAP.md` |
+| README complete and submission-ready | Problem, brand, taxonomy, architecture, grounding, escalation, baselines, results, failure analysis, misleading-headline section, limitations, reproduction, what-wasn't-built, one-week plan | -- | `README.md` (this doc's counterpart audit is `planning/FINAL_SUBMISSION_AUDIT.md`) |
+| Citations for dataset/libraries | HuggingFace mirror of the Kaggle dataset, all Python libraries listed with purpose | -- | README "Citations" |
+
+## Requirements NOT independently satisfiable in this environment
+Both are implemented and contract-tested, and are marked as blocked on an
+external resource rather than fabricated:
+- **Live LLM judge execution** -- blocked on missing `ANTHROPIC_API_KEY`.
+- **Human-vs-LLM agreement study** -- blocked on no available annotators.
+
+See `planning/FINAL_SUBMISSION_AUDIT.md` for the full status table and
+`planning/12_HUMAN_VALIDATION.md` for exactly what would need to run given
+those resources.
