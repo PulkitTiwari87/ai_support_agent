@@ -128,3 +128,60 @@ evidence that drove it.
     correct by substituting a fake `anthropic` module -- so supplying a
     real key is the only remaining step to make these paths live, and that
     claim is now tested rather than assumed.
+
+18. **Kept a word+char n-gram classifier change despite a lower macro-F1,
+    because it improves the assignment's stated priority metric.** Tuned
+    on a held-out `dev_pool` split (macro-F1 0.595->0.606 there,
+    `scripts/experiment_char_ngrams.py`), then checked once against the
+    frozen golden set: accuracy 0.728->0.736, macro-F1 0.620->0.591,
+    false-auto-handle rate 0.095->0.055 (12->7 cases), false-escalation
+    rate 0.358->0.390 (44->48 cases). Unlike decision #15 (which regressed
+    every metric and was rejected), this trades secondary metrics for an
+    improvement in exactly the metric the assignment weighs highest
+    (auto-handling something that needed escalation is the worst failure).
+    Kept, with the tradeoff stated in numbers everywhere it's reported, not
+    presented as an unqualified win.
+
+19. **Found and fixed a second, more serious reproducibility bug:
+    `scripts/run_all.py` used a bare `"python"` instead of
+    `sys.executable`.** In this environment, bare `python` on PATH resolves
+    to a completely different, unrelated system Python installation with an
+    old, unpinned scikit-learn (1.3.2) -- not the project's `.venv` that
+    `requirements.txt` pins to 1.9.1. This meant the documented one-command
+    reproduction path silently ignored the pinned dependencies on every
+    run, regardless of decision #14's version pin. Fixed by using
+    `sys.executable` for every subprocess step. This also means the
+    previous session's "byte-identical reproduction" verification was
+    comparing the wrong things (manual `.venv` invocations against each
+    other, not the actual documented `run_all.py` command) -- corrected
+    and re-verified this pass with zero version warnings.
+
+20. **Fixed the "hacking" vs. "hacked" escalation regex gap found in
+    failure analysis, and verified it doesn't silently change the frozen
+    golden set's grading.** Broadened `hacked` to `hack\w*` in
+    `src/taxonomy.py::_ESCALATE_RULES` (a genuine safety-relevant bug: a
+    real account-security complaint using "hacking" instead of "hacked"
+    wasn't triggering the security escalation rule). Since this rule is
+    shared between the golden labeler and the system, regenerated the
+    golden set and diffed it against the previous frozen version before
+    accepting the change: zero `should_escalate` labels changed (still
+    127/250) -- only one row's `escalation_reason` corrected from a
+    coincidental `unclassified_intent` fallback to the true
+    `account_security` cause. `baseline_simple`'s escalation recall moved
+    slightly (0.047->0.055) since it reuses the same rule list. This is the
+    kind of fix the "don't cheat the golden set" rule requires disclosing
+    explicitly, which is why it's logged here with the before/after diff
+    rather than silently applied.
+
+21. **Did not attempt further `other`-class fixes after two experiments.**
+    Confirmed via per-class training counts that `feature_request_feedback`
+    (11 examples) and `content_availability` (19 examples) in `dev_pool`
+    are too small for any TF-IDF-based classifier to learn robustly
+    regardless of features/thresholds -- verified by held-out validation
+    where `feature_request_feedback` recall stayed at 0 under both the
+    word-only and word+char-n-gram classifiers (2 validation examples in
+    that class, held-out). Concluded this is a data-scarcity problem
+    requiring more labeled examples, not further architecture tuning on the
+    same ~11-19-example classes -- a valid engineering conclusion per the
+    assignment's own framing (section 34: "the bottleneck is data labeling,
+    not model sophistication" is an acceptable answer).

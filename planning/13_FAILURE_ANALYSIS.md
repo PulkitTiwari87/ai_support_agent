@@ -6,20 +6,29 @@ golden set). Regenerate with `python scripts/evaluate.py`.
 
 ## Top failure modes (real, inspected examples)
 
-**Update (verification pass)**: re-measured precisely -- **100% of escalation
-errors (56/56: 12 false-auto-handle + 44 false-escalation) involve `other`
-on the gold-label side, the predicted side, or both** (more precise than
-the earlier ~85% estimate). Escalation rate by gold intent is 1.0 for
-`other` and near-0 for every real class, so this is close to a clean,
-single-cause failure mode. An experiment to fix it (probability-override
-threshold, tuned on held-out `dev_pool`) was tried and **rejected** after
-it made every golden-set metric worse, including the headline
-false-auto-handle rate (0.095->0.134) -- see
-`planning/18_DECISION_LOG.md` #15 and `planning/10_EVALUATION.md`. The root
-cause (65% `other` share in weak training labels) remains unresolved.
+**Update (2nd verification pass, current classifier)**: re-measured
+precisely -- **100% of escalation errors (55/55: 7 false-auto-handle + 48
+false-escalation) involve `other` on the gold-label side, the predicted
+side, or both** (more precise than the earlier ~85% estimate; consistent
+across two independent measurements: 56/56 with the word-only classifier,
+55/55 with the current word+char-n-gram classifier). Escalation rate by
+gold intent is 1.0 for `other` and near-0 for every real class, so this is
+a clean, single-cause failure mode. Two fix attempts:
+- Probability-override threshold (tuned on held-out `dev_pool`): **rejected**
+  -- made every golden-set metric worse, including false-auto-handle rate
+  (0.095->0.134).
+- Word+char n-gram features (tuned on held-out `dev_pool`): **kept** --
+  cut false-auto-handle from 0.095 to 0.055 (12->7 cases), but macro-F1
+  dropped 0.620->0.591 and false-escalation rose 0.358->0.390. A tradeoff,
+  not a fix.
+
+See `planning/18_DECISION_LOG.md` #15/#18 and `planning/10_EVALUATION.md`.
+The root cause (65% `other` share in weak training labels, with
+minority classes as small as 11-19 examples) remains unresolved by either
+experiment.
 
 ### 1. Nearly all escalation errors (both directions) trace to one root cause: intent collapsing to `other`
-- **13 false-auto-handle cases** (system says handle, gold says escalate):
+- **7 false-auto-handle cases** (system says handle, gold says escalate):
   every single one has `pred_intent` != `other` while `gold_intent == other`
   (escalation_reason=`unclassified_intent`). Example: `sp_019350`, "I can't
   log into my account. It says I use Facebook, but let me do it" -- the
@@ -28,13 +37,13 @@ cause (65% `other` share in weak training labels) remains unresolved.
   `unclassified_intent -> escalate` fallback fired. This is *golden-label*
   brittleness showing up as an apparent system failure, not the system
   misunderstanding the message.
-- **42 false-escalation cases** (system escalates, gold says don't): all 42
+- **48 false-escalation cases** (system escalates, gold says don't): all 48
   have `pred_intent == other` while `gold_intent` is a real class (mostly
-  `playback_technical` and `billing_subscription`). Example: `sp_035655`,
-  "Every month, my app dumps 15 GB of downloaded playlists and forces me to
-  download all of it again" -- clearly `playback_technical` to a human
-  reader, but the TF-IDF+LogReg classifier's confidence collapsed to
-  `other` on this noisy, profanity-adjacent, run-on sentence.
+  `billing_subscription`). Example: `sp_035655`, "Every month, my app dumps
+  15 GB of downloaded playlists and forces me to download all of it again"
+  -- gold-labeled `billing_subscription` (per the taxonomy rules), but the
+  classifier's confidence collapsed to `other` on this noisy, run-on
+  sentence.
 - **Root cause**: `other` is simultaneously (a) the taxonomy's genuine
   catch-all for ambiguous text and (b) the golden labeler's fallback when
   its regex coverage is incomplete and (c) the classifier's fallback when
@@ -47,15 +56,27 @@ cause (65% `other` share in weak training labels) remains unresolved.
   label-based (already partially done: `retrieval_confidence < 0.15` also
   triggers escalation independent of intent).
 
-### 2. Regex word-form brittleness on security-relevant language
+### 2. Regex word-form brittleness on security-relevant language (found, then fixed this pass)
 `sp_024683`: "Somebody appears to have been **hacking** my spotify..." was
 NOT caught by the `account_security` escalation rule, which matched
-"hacked" but not "hacking". This is the single highest-risk category of bug
-in this system (a real account-security complaint that could go
-un-escalated) and was found by manual spot-check, not by the automated
-metrics. Regex-only escalation logic is fragile to morphological variants;
-a production version should not rely solely on literal keyword matching for
-safety-critical categories.
+"hacked" but not "hacking". Before this pass's fix, this example still
+escalated correctly by coincidence (both the gold labeler and the
+classifier landed on `other` for it, independently triggering escalation
+via `unclassified_intent`) -- but the underlying bug was real: if this
+message were ever classified into a real intent (e.g. `account_access`),
+it would NOT have escalated via `account_security`. **Fixed this pass**:
+broadened `hacked` to `hack\w*` (and `stolen` to `stole\w*|stolen`) in
+`src/taxonomy.py::_ESCALATE_RULES`. Verified impact: zero change to any
+`should_escalate` label in the golden set (still 127/250, since this
+example already escalated via the coincidental path) -- only its
+`escalation_reason` corrected from `unclassified_intent` to
+`account_security` (the true cause). `baseline_simple`, which reuses the
+first 3 `_ESCALATE_RULES` entries, gained one true-positive escalation from
+this fix (recall 0.047->0.055). This was the single highest-risk latent bug
+in the system (a real account-security complaint could have silently
+failed to escalate under different classifier behavior) and was found by
+manual spot-check, not by automated metrics -- regex-only escalation logic
+remains fragile to other morphological variants not yet found.
 
 ### 3. Extractive reply generation's "groundedness" check is close to
 tautological

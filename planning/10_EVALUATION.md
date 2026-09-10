@@ -18,31 +18,50 @@ evaluation set or a different metric definition. Reproduce with
   `playback_technical` 31, `account_access` 21, `feature_request_feedback`
   16, `content_availability` 6.
 
-## Verified results (fresh model retrain, current sklearn 1.9.1)
+## Verified results (fresh model retrain via `scripts/run_all.py`,
+## word+char n-gram classifier, sklearn 1.9.1, no version warnings)
 | | intent acc | intent macro-F1 | escalation P/R/F1 | false-auto-handle | false-escalation |
 |---|---|---|---|---|---|
 | trivial | 0.472 | 0.107 | 0.00/0.00/0.00 | 1.000 (127/127) | 0.000 (0/123) |
 | simple | 0.704 | 0.522 | 1.00/0.047/0.090 | 0.953 (121/127) | 0.000 (0/123) |
-| **system** | **0.728** | **0.620** | 0.723/0.906/0.804 | **0.095 (12/127)** | 0.358 (44/123) |
+| **system** | **0.736** | **0.591** | 0.714/0.945/0.814 | **0.055 (7/127)** | 0.390 (48/123) |
 
-## A reproducibility bug found and fixed during this pass
-Re-running `scripts/evaluate.py` against the *previously committed* model
-pickle (trained under scikit-learn 1.3.2, loaded under 1.9.1 installed in
-this venv) produced **different** numbers (intent accuracy 0.68 instead of
-0.728, false-auto-handle-rate 0.173 instead of 0.095) with an
-`InconsistentVersionWarning`. This was a real correctness bug: an unpinned
-`scikit-learn` version in `requirements.txt` meant the persisted model could
-silently diverge from what a fresh install would train. Fixed by:
-1. Pinning `scikit-learn==1.9.1` in `requirements.txt`.
-2. Retraining fresh (`python src/intent_classifier.py && python
-   src/retrieval.py`) and re-verifying the numbers above match the
-   originally reported ones -- they do, exactly, confirming the *original*
-   reported numbers were correct and the drift was purely a stale-pickle
-   artifact, not a real regression.
-3. `scripts/run_all.py` already retrains from scratch every run, so this
-   bug could only have surfaced by running `scripts/evaluate.py` in
-   isolation against a stale artifact -- documented here so it doesn't
-   recur silently.
+(Superseded numbers from an earlier word-only classifier, kept for the
+audit trail: accuracy 0.728, macro-F1 0.620, false-auto-handle 0.095
+(12/127), false-escalation 0.358 (44/123) -- see "Char n-gram experiment"
+below for why the numbers changed and why the change was kept.)
+
+## Two reproducibility bugs found and fixed across sessions
+
+**Bug 1 (session 2): unpinned scikit-learn.** Re-running
+`scripts/evaluate.py` against a previously committed model pickle (trained
+under scikit-learn 1.3.2, loaded under 1.9.1 installed in this venv)
+produced different numbers with an `InconsistentVersionWarning`. Fixed by
+pinning `scikit-learn==1.9.1` in `requirements.txt` and retraining fresh.
+
+**Bug 2 (session 3, more serious): `run_all.py` used a bare `"python"`
+instead of `sys.executable`.** In this environment, bare `python` on PATH
+resolves to a completely unrelated system Python installation with
+scikit-learn 1.3.2 -- *not* the project's `.venv` (1.9.1, matching
+`requirements.txt`'s pin). This meant **the documented one-command
+reproduction path (`python scripts/run_all.py`) silently ignored the pinned
+dependency versions on every run**, regardless of the sklearn pin from
+Bug 1's fix. It was internally self-consistent (train and evaluate both
+happened under system Python 1.3.2), which is why it didn't surface as a
+version-mismatch warning during `run_all.py` itself -- it only showed up
+when directly re-running `scripts/evaluate.py` under `.venv` afterward and
+finding a mismatch against whatever `run_all.py` had most recently trained.
+Fixed by using `sys.executable` for every subprocess step in
+`scripts/run_all.py`. Re-ran the full pipeline after the fix: zero version
+warnings, fully self-consistent, and this is now the verified canonical
+result.
+
+This means the "byte-identical" reproducibility claim from the previous
+session's audit was checking the wrong thing (manual `.venv`-only
+invocations matching each other) rather than verifying that the actually
+documented command (`python scripts/run_all.py`) used the pinned
+environment at all. Both bugs are now fixed and the full run is verified
+self-consistent under `sys.executable`.
 
 ## Leakage audit (re-verified this pass)
 - `eval_pool` / `dev_pool` / `retrieval_corpus`: zero `conversation_id`
@@ -63,29 +82,62 @@ silently diverge from what a fresh install would train. Fixed by:
   affect eval/dev independence -- but noted as a data-quality property.
 
 ## What "improve the largest failure mode" produced
-Investigated why ~100% of escalation errors (56/56, both directions)
-co-occur with the intent classifier or golden labeler assigning `other`
-(more precise than the earlier ~85% estimate; see
-`planning/13_FAILURE_ANALYSIS.md`). Root cause: `other` is 65% of
-`dev_pool` weak training labels (344/529), so even with
-`class_weight="balanced"`, the classifier over-predicts it.
 
-**Experiment**: override raw argmax with the best non-`other` class when its
-probability clears a threshold, tuned on an 80/20 held-out split of
-`dev_pool` only (never the golden set) -- see
-`scripts/tune_other_threshold.py`. Best threshold (0.30) improved macro-F1
-on that held-out dev slice from 0.595 to 0.622.
+Investigated why 100% of escalation errors (55/55 in the current run, 56/56
+in the previous session -- both directions) co-occur with the intent
+classifier or golden labeler assigning `other` (more precise than the
+earlier ~85% estimate; see `planning/13_FAILURE_ANALYSIS.md`). Root cause:
+`other` is 65% of `dev_pool` weak training labels (344/529), so even with
+`class_weight="balanced"`, the classifier over-predicts it. Confirmed this
+is a data-scarcity problem, not purely an architecture problem:
+`feature_request_feedback` has only 11 `dev_pool` examples and
+`content_availability` only 19 -- both too few for any TF-IDF classifier to
+learn robustly regardless of features or thresholds.
 
-**Result on the frozen golden set (checked once)**: this made every
-headline number worse -- intent accuracy 0.728->0.716, macro-F1
-0.620->0.605, and critically the false-auto-handle rate rose from 0.095 to
-0.134 (12->17 missed escalations). **Rejected** per the regression policy;
-reverted to plain argmax. See `planning/18_DECISION_LOG.md` for the full
-writeup. The dev-tuned threshold did not generalize, most likely because
-the held-out dev slice and the golden set -- despite both being drawn from
-the same rule-labeling family -- have different enough composition that a
-threshold fit to one doesn't transfer. This is left as a documented,
-unresolved limitation rather than iterated further against the golden set.
+**Experiment 1 (rejected): confidence-override threshold.** Override raw
+argmax with the best non-`other` class when its probability clears a
+threshold, tuned on an 80/20 held-out split of `dev_pool` only (never the
+golden set) -- see `scripts/tune_other_threshold.py`. Best threshold (0.30)
+improved macro-F1 on that held-out dev slice from 0.595 to 0.622, but
+checked once against the frozen golden set, made every headline number
+worse (accuracy 0.728->0.716, macro-F1 0.620->0.605, false-auto-handle
+0.095->0.134). Reverted to plain argmax.
+
+**Experiment 2 (kept): word+char n-gram features.** Added character
+n-grams (3-5 chars, `analyzer="char_wb"`) alongside the existing word
+n-grams via `FeatureUnion`, hypothesizing this would help match word-form
+variants (crash/crashes/crashing) without needing more labeled examples --
+see `scripts/experiment_char_ngrams.py`. Tuned/checked on the same 80/20
+`dev_pool` split first (macro-F1 0.595->0.606 there, with
+`feature_request_feedback` recall staying at 0 due to only 2 validation
+examples -- confirming the scarcity diagnosis independent of features).
+Checked once against the frozen golden set:
+
+| | word-only | word+char n-grams |
+|---|---|---|
+| intent accuracy | 0.728 | 0.736 |
+| intent macro-F1 | 0.620 | 0.591 |
+| escalation F1 | 0.804 | 0.814 |
+| false-auto-handle rate | 0.095 (12/127) | 0.055 (7/127) |
+| false-escalation rate | 0.358 (44/123) | 0.390 (48/123) |
+
+This is a genuine tradeoff, not a clean win: per-class inspection shows
+char n-grams make the classifier predict `other` *more* often (160 vs. 150
+predictions), which improves recall on the majority `other` class (helping
+the headline false-auto-handle metric) at the cost of recall on minority
+classes like `playback_technical` (recall dropped to 0.29) and
+`feature_request_feedback` (recall dropped to 0.19) -- hence lower
+macro-F1 and more false escalations. **Kept** because the assignment
+explicitly weighs false-auto-handle as the worst failure mode, and this
+change trades secondary metrics for exactly that one, unlike Experiment 1
+which regressed everything including the primary metric. Documented with
+full numbers, not presented as an unqualified improvement. See
+`planning/18_DECISION_LOG.md` #15 and #18.
+
+The underlying data-scarcity problem for minority intent classes remains
+unresolved by either experiment -- a valid engineering conclusion (see
+`planning/13_FAILURE_ANALYSIS.md`), not something threshold or feature
+tuning on the same ~11-19-example classes can fix.
 
 ## LLM judge and human validation: status
 Both implemented, neither executed with real credentials/annotators in this

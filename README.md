@@ -94,23 +94,52 @@ Code: `src/taxonomy.py`, `src/intent_classifier.py`, `src/retrieval.py`,
 | | intent accuracy | intent macro-F1 | escalation P / R / F1 | false auto-handle rate | false escalation rate |
 |---|---|---|---|---|---|
 | Baseline 1 (trivial) | 0.472 | 0.107 | 0.00 / 0.00 / 0.00 | **1.000** (127/127) | 0.000 |
-| Baseline 2 (simple keyword) | 0.704 | 0.522 | 1.00 / 0.047 / 0.090 | **0.953** (121/127) | 0.000 |
-| **Full system** | **0.728** | **0.620** | 0.723 / 0.906 / 0.804 | **0.095** (12/127) | 0.358 (44/123) |
+| Baseline 2 (simple keyword) | 0.704 | 0.522 | 1.00 / 0.055 / 0.105 | **0.945** (120/127) | 0.000 |
+| **Full system** | **0.736** | **0.591** | 0.714 / 0.945 / 0.814 | **0.055** (7/127) | 0.390 (48/123) |
 
-Reproduce: `python scripts/evaluate.py`.
+Reproduce: `python scripts/run_all.py` (retrains from scratch, no cached
+model reused).
 
 ## Headline result
-**False auto-handle rate drops from 100% (trivial) / 95% (simple keyword
-baseline) to 9.5% with the full system** -- i.e., when a message actually
+**False auto-handle rate drops from 100% (trivial) / 94.5% (simple keyword
+baseline) to 5.5% with the full system** -- i.e., when a message actually
 needed a human, the naive baselines almost always let it through as
-auto-handled; the full system catches ~90% of those. This is the metric the
+auto-handled; the full system catches ~95% of those. This is the metric the
 assignment prioritizes explicitly (auto-handling something that should have
 escalated is the worst failure mode), so it's the headline, not raw
 accuracy.
 
-The cost of that gain: false-escalation rate is 36% -- the system is
-deliberately conservative, escalating some cases a human wouldn't have
-needed to see. That's a real tradeoff, not hidden in the summary table.
+The cost of that gain: false-escalation rate is 39% and intent macro-F1
+(0.591) is actually a bit lower than an earlier version of this classifier
+(0.620) -- see "Char n-gram tradeoff" below. The system is deliberately
+conservative, escalating some cases a human wouldn't have needed to see.
+That's a real, disclosed tradeoff, not hidden in the summary table.
+
+## Char n-gram tradeoff (this session's one kept experiment)
+The intent classifier was changed from word-only TF-IDF to word+char
+n-gram features (`src/intent_classifier.py`), tuned on a held-out slice of
+`dev_pool` and checked once against the golden set. Effect on the frozen
+golden set, char n-grams vs. word-only:
+
+| | word-only (previous) | word+char n-grams (current) |
+|---|---|---|
+| intent accuracy | 0.728 | 0.736 |
+| intent macro-F1 | 0.620 | 0.591 |
+| escalation F1 | 0.804 | 0.814 |
+| false-auto-handle rate | 0.095 (12/127) | **0.055 (7/127)** |
+| false-escalation rate | 0.358 (44/123) | 0.390 (48/123) |
+
+This is a genuine, explainable tradeoff, not a straight improvement: char
+n-grams make the classifier more conservative (predicts `other` more
+often), which cuts the headline false-auto-handle count nearly in half but
+costs minority-class intent precision (macro-F1 down) and produces more
+false escalations. Kept because the assignment explicitly prioritizes
+minimizing false-auto-handle over minimizing false-escalation. A separate,
+earlier experiment (a raw confidence-override threshold, see
+`planning/18_DECISION_LOG.md` #15) was rejected because it made *every*
+metric worse, including the headline one -- this one only trades secondary
+metrics for the primary one, which is a defensible call, not a rejected
+regression.
 
 ## What's misleading about the headline number
 1. **The 250-example golden set's escalation ground truth is rule-derived,
@@ -121,17 +150,19 @@ needed to see. That's a real tradeoff, not hidden in the summary table.
    labeling method (regex over English keywords) is the same across golden
    labels and parts of the system. A truly independent human-labeled set
    might show a smaller gap.
-2. **100% of ALL escalation errors (56/56: both false-auto-handle and
+2. **100% of ALL escalation errors (55/55: both false-auto-handle and
    false-escalation) involve one root cause**: the intent classifier or
    the golden labeler collapsing ambiguous text to the catch-all `other`
    class (see `planning/13_FAILURE_ANALYSIS.md`, failure mode #1 -- verified
-   precisely this pass, revising an earlier ~85% estimate). This means the
-   headline number is really measuring "how well does the system handle the
-   `other` bucket," not a broad, even spread of failure types. A fix was
-   attempted (probability-override threshold on the classifier, tuned on
-   held-out dev data) and **made every metric worse** when checked once
-   against the frozen golden set -- reverted, not hidden
-   (`planning/18_DECISION_LOG.md` #15).
+   precisely across two sessions, revising an earlier ~85% estimate). This
+   means the headline number is really measuring "how well does the system
+   handle the `other` bucket," not a broad, even spread of failure types.
+   One fix (probability-override threshold) was tried and **made every
+   metric worse**, and was reverted; a second fix (char n-grams) improved
+   the headline metric specifically but at a real cost to macro-F1 and
+   false-escalation rate (see "Char n-gram tradeoff" above) -- neither is a
+   clean solution, both are disclosed with numbers
+   (`planning/18_DECISION_LOG.md` #15, #18).
 3. **Reply groundedness is reported as 100%, but that's close to
    tautological**: the extractive generator (used because no API key was
    available) literally copies the retrieved historical reply, so
@@ -152,9 +183,14 @@ needed to see. That's a real tradeoff, not hidden in the summary table.
 
 ## Top failure modes (real examples, not generic AI weaknesses)
 See `planning/13_FAILURE_ANALYSIS.md` for full detail with quoted examples:
-1. Intent collapsing to `other` drives 100% of all escalation errors (56/56),
-   in both directions. Attempted fix (confidence-threshold override,
-   tuned on held-out dev data) regressed the golden set and was reverted.
+1. Intent collapsing to `other` drives 100% of all escalation errors
+   (55/55), in both directions. Root cause: minority intent classes have
+   very few training examples (`feature_request_feedback` n=11,
+   `content_availability` n=19 in `dev_pool` weak labels) -- likely a data
+   scarcity problem, not a model/threshold problem. Two fixes were tried:
+   a confidence-threshold override (regressed everything, reverted) and
+   char n-gram features (improved the headline metric, cost macro-F1 --
+   kept, disclosed as a tradeoff).
 2. Regex word-form brittleness missed a real account-takeover case
    ("hacking" vs. "hacked") until caught by manual spot-check and fixed.
 3. Extractive-reply groundedness metric is near-tautological (see above).
@@ -177,9 +213,12 @@ See `planning/13_FAILURE_ANALYSIS.md` for full detail with quoted examples:
   it isn't a real signal until the LLM paraphrasing path runs.
 - **Single brand, single language, 2017-era tweets** -- no generalization
   claim beyond this dataset.
-- **An intent-classifier fix was tried and rejected** after it regressed
-  the frozen golden set; the underlying `other`-class confusion (100% of
-  escalation errors) remains unresolved.
+- **The `other`-class confusion (100% of escalation errors) remains only
+  partly mitigated.** One fix (confidence-threshold override) was tried and
+  rejected; a second (char n-grams) is kept because it improves the
+  headline metric, but it trades away macro-F1 and false-escalation rate
+  to do it -- it does not resolve the underlying data-scarcity problem in
+  minority intent classes.
 
 ## What was intentionally NOT built
 - No production infrastructure, auth, queues, or orchestration frameworks
@@ -208,12 +247,29 @@ No secrets or credentials are committed. No raw/processed data over a few
 MB is committed (`data/raw/` is gitignored; regenerate with
 `scripts/fetch_data.py`).
 
-**Reproducibility bug found and fixed this pass**: `requirements.txt`
-originally left `scikit-learn` unpinned. Re-running evaluation against an
-already-committed model pickle with a newer installed sklearn version
-produced silently different (worse) metrics. Fixed by pinning
-`scikit-learn==1.9.1` and confirming a fresh retrain reproduces the
-originally reported numbers exactly. See `planning/10_EVALUATION.md`.
+**Two reproducibility bugs found and fixed across sessions**:
+1. `requirements.txt` originally left `scikit-learn` unpinned, so a stale
+   committed model pickle could silently produce different metrics under a
+   newer installed sklearn. Fixed by pinning `scikit-learn==1.9.1`.
+2. **More serious**: `scripts/run_all.py` originally shelled out to a bare
+   `"python"` rather than `sys.executable`. In this environment that bare
+   `python` resolved to an *entirely different, unrelated system Python
+   install* with an old, unpinned scikit-learn (1.3.2) -- meaning the
+   documented one-command reproduction path silently ignored the pinned
+   `.venv` dependencies every time it ran. Fixed by using `sys.executable`
+   for every subprocess step, so `run_all.py` always runs under whichever
+   interpreter launched it. Re-verified after the fix: no version warnings,
+   fully self-consistent results. See `planning/10_EVALUATION.md`.
+
+**A safety-relevant escalation bug found and fixed this pass**: the
+`account_security` escalation rule matched "hacked" but not "hacking" (a
+real account-takeover message using the latter word-form would not have
+triggered security escalation). Fixed in `src/taxonomy.py`. Since this rule
+is shared with the golden-set labeler, the golden set was regenerated and
+diffed against the previous frozen version before accepting the change:
+**zero `should_escalate` labels changed** (still 127/250) -- only one row's
+recorded escalation *reason* was corrected. See
+`planning/18_DECISION_LOG.md` #20 for the full diff.
 
 ## Citations
 - Dataset: Twitter customer-support conversations, originally published on
@@ -228,10 +284,13 @@ originally reported numbers exactly. See `planning/10_EVALUATION.md`.
 
 ## One additional week
 1. Fix the `other`-class collapse (failure mode #1) -- highest-value single
-   fix, would move both false-auto-handle and false-escalation rates. One
-   attempt (confidence-threshold override) was tried and rejected this
-   pass; next attempts should target more/better labeled training data
-   for the minority classes rather than further threshold tuning.
+   fix, would move both false-auto-handle and false-escalation rates
+   together instead of trading one for the other. Two attempts so far
+   (confidence-threshold override: rejected; char n-grams: kept as a
+   partial, lopsided improvement) suggest the real fix is more/better
+   labeled training data for minority classes
+   (`feature_request_feedback` n=11, `content_availability` n=19), not
+   further feature/threshold engineering on the same tiny label set.
 2. Run the real LLM judge and a genuine 2+ rater human validation pass with
    an API key and actual annotators (`planning/12_HUMAN_VALIDATION.md`).
 3. Swap regex escalation triggers for stemmed/lemmatized or embedding-based

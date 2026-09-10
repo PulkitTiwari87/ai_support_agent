@@ -61,7 +61,7 @@ def classify_intent(text: str) -> str:
 
 _ESCALATE_RULES = [
     ("account_security", re.compile(
-        r"\b(hacked|stolen|account.*(hacked|stolen|compromised)|"
+        r"\b(hack\w*|stole\w*|stolen|account.*(hack\w*|stolen|compromised)|"
         r"email (was )?changed.*(not me|didn'?t|without)|unauthorized|fraud|"
         r"(accessed|logged in to|got into) my account|"
         r"changed (the |my )?(account )?email.*(recognize|not mine|wasn'?t me))\b", re.I)),

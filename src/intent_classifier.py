@@ -12,7 +12,7 @@ sys.path.insert(0, "src")
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
 from taxonomy import classify_intent
 
 MODEL_PATH = "data/processed/intent_model.pkl"
@@ -22,8 +22,17 @@ def train():
     df = pd.read_csv("data/processed/dev_pool.csv")
     df["intent_label"] = df["customer_msg"].apply(classify_intent)
 
+    # word n-grams + char n-grams: char n-grams help match word-form variants
+    # (crash/crashes/crashing) without needing more labeled examples. Tuned
+    # on an 80/20 held-out split of dev_pool (macro-F1 0.595 -> 0.606 there,
+    # scripts/experiment_char_ngrams.py) and checked once against the
+    # frozen golden set before keeping -- see planning/18_DECISION_LOG.md.
+    features = FeatureUnion([
+        ("word", TfidfVectorizer(min_df=2, ngram_range=(1, 2), sublinear_tf=True)),
+        ("char", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=2, sublinear_tf=True)),
+    ])
     pipe = Pipeline([
-        ("tfidf", TfidfVectorizer(min_df=2, ngram_range=(1, 2), sublinear_tf=True)),
+        ("features", features),
         ("clf", LogisticRegression(max_iter=1000, class_weight="balanced", C=2.0)),
     ])
     pipe.fit(df["customer_msg"], df["intent_label"])

@@ -5,14 +5,20 @@ import subprocess
 import sys
 
 STEPS = [
-    ["python", "scripts/fetch_data.py"],
-    ["python", "scripts/process_data.py"],
-    ["python", "scripts/build_golden_set.py"],
-    ["python", "src/intent_classifier.py"],
-    ["python", "src/retrieval.py"],
-    ["python", "scripts/evaluate.py"],
-    ["python", "scripts/judge_replies.py"],
+    [sys.executable, "scripts/fetch_data.py"],
+    [sys.executable, "scripts/process_data.py"],
+    [sys.executable, "scripts/build_golden_set.py"],
+    [sys.executable, "src/intent_classifier.py"],
+    [sys.executable, "src/retrieval.py"],
+    [sys.executable, "scripts/evaluate.py"],
+    [sys.executable, "scripts/judge_replies.py"],
 ]
+# sys.executable, not a bare "python" on PATH: a hardcoded "python" silently
+# picked up a different, unrelated system interpreter (with an unpinned,
+# older scikit-learn) instead of the project's own .venv in this
+# environment -- found this session (planning/18_DECISION_LOG.md). Using
+# sys.executable guarantees every step runs under whatever interpreter
+# actually launched run_all.py.
 
 def main():
     for step in STEPS:

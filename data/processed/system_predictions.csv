@@ -1,7 +1,7 @@
 pred_intent,pred_escalate,escalation_reason,draft_reply,grounded
 other,True,unclassified_intent,"Hi Cooper! We’d love to have all of his stuff available, but we have some info about Spotify content here:",True
 billing_subscription,False,none,"Hi Bob, help's here! Could you DM us your username and email address? We'll do some digging 🔍",True
-content_availability,False,none,"Hey, thanks for the report. We had a little hiccup earlier but everything should be running just fine now",True
+other,True,unclassified_intent,"Hey, thanks for the report. We had a little hiccup earlier but everything should be running just fine now",True
 billing_subscription,False,none,"Hey there, help's here! Can you DM us your account's email address? We'll take a look backstage",True
 other,True,unclassified_intent,"Hey Alex, help's here! Can you DM us your account's email address and a bit more info about what's going on? We'll see what we can suggest",True
 other,True,unclassified_intent,"2: isn't available to stream just yet – stay tuned! For now, check out the singles:",True
@@ -10,7 +10,7 @@ account_access,True,account_security,Hey Neil! Can you DM us your account's emai
 other,True,unclassified_intent,Hi there! What's happening exactly? Can you DM us your account's email address or username? We'll take a look backstage,True
 other,True,unclassified_intent,"Hey! We don't have any info to share about this right now, but we’re working on it as we speak. Stay tuned",True
 other,True,unclassified_intent,Hey Leo! We’ve recently made some improvements to our shuffle algorithm. We’d love to hear your feedback here:,True
-account_access,False,none,Hey! We've just sent a DM your way. Check your Messages,True
+other,True,unclassified_intent,"Hey! Don’t worry, we can help. What’s happening exactly? Can you DM us your account's email address? We'll take a look",True
 other,True,unclassified_intent,"Hey Myiah! Could you let us know your device's make/model, operating system, and Spotify version? We'll see what we can suggest",True
 other,True,unclassified_intent,Hi Mark! We'll look into this. What’s happening exactly? Can you let us know the device/OS you’re using to control Google Home?,True
 billing_subscription,False,none,Hey there! We're afraid it's currently not possible. The recipient's country settings should match where the gift card was purchased. There's more info about gift card here: Hope this clears things up,True
@@ -33,7 +33,7 @@ other,True,unclassified_intent,"We hear you loud and clear, Megan! We can’t ma
 playback_technical,False,none,"Rest assured our devs constantly monitor the votes and comments in our Community, even if an idea's marked ""Not Right Now"". Aside from that, we don't have any more news to share regarding Spotify on the Apple Watch, but we'll pass on your comments to the right team",True
 other,True,unclassified_intent,Hi James! We're afraid the Time Capsule playlist is a one-time playlist only. Let us know if you have any other questions,True
 billing_subscription,False,none,Hey there! We're here to help. Can you DM us your account's email address? We'll take a look under the hood,True
-content_availability,True,high_distress,Hey Christina! We're launching regularly in countries around the world. Sign up here to be first to hear:,True
+other,True,high_distress,Hey Christina! We're launching regularly in countries around the world. Sign up here to be first to hear:,True
 other,True,unclassified_intent,Thanks for the feedback – we appreciate it! We’ll get this passed onto the right team 💚,True
 other,True,unclassified_intent,Hmm. Could you DM us your account's username or email address? We'll take a look under the hood,True
 other,True,unclassified_intent,Hi! We've just replied to your DM. Let's carry on chatting there,True
@@ -41,7 +41,7 @@ other,True,unclassified_intent,Hmm. Can you DM us your account's email address? 
 other,True,unclassified_intent,Hi there! Help's here. Can you DM us your account's username or email address? We'll take a look under the hood,True
 billing_subscription,False,none,"Hi Matt, help's here! We just replied to your DM. For your security, let's carry on chatting there 🙂",True
 other,True,unclassified_intent,Hey John! Thanks for your feedback. We'll pass it on to the right folks. You can also vote for the idea here:,True
-content_availability,False,none,"Hi! Taylor Swift's 'Reputation' isn't available to stream just yet – stay tuned! For now, check out the singles:",True
+other,True,unclassified_intent,"Hi! Taylor Swift's 'Reputation' isn't available to stream just yet – stay tuned! For now, check out the singles:",True
 billing_subscription,False,none,Hey there! Pre-sale codes are sent out via email to certain select artist's biggest fans on Spotify. Hopefully you're one of them 🙂,True
 billing_subscription,False,none,Hi! We've just responded to you with a bit more info over DM. We'll carry on helping out there,True
 billing_subscription,False,none,"Hey, help's here! Could you send us a DM with your account's username or email address? We'll take a look backstage 🔍",True
@@ -53,7 +53,7 @@ other,True,unclassified_intent,"Hey, sorry to hear that! Check the steps under �
 other,True,unclassified_intent,That's great to hear! Just in time to...,True
 other,True,unclassified_intent,"Hey there! We don't have any info on these right now, but we'll let the right team know they're features you'd like to see",True
 other,True,unclassified_intent,"If you've been selected, you'll receive an email that will allow you to participate in the pre-sale while it's running. We suggest checking your inbox (including spam/junk folders) regularly. We'll keep our fingers crossed for you 🙂",True
-playback_technical,False,none,"Hey there! Can you let us know what device, operating system, and Spotify version you're using? We'll see what we can suggest",True
+other,True,unclassified_intent,"Hey there! Can you let us know what device, operating system, and Spotify version you're using? We'll see what we can suggest",True
 other,True,unclassified_intent,"Hi Frederick! We totally agree. If you’re Premium, you can connect your Spotify account to the Musixmatch mobile app to enjoy lyrics:",True
 playback_technical,True,high_distress,We'd love to have all of his stuff available to you! Hopefully we will in the future,True
 billing_subscription,False,none,Hey! We've just sent you a bit more info over DM. We'll carry on helping out there,True
@@ -65,7 +65,7 @@ other,True,unclassified_intent,"Thanks for your feedback - we'll pass it on. For
 account_access,False,none,Hey Marsha! That doesn't sound good. Can you send us a DM with your account's email address? Are you getting any specific error messages while logging in to your account? We'll take a look under the hood,True
 other,True,unclassified_intent,Nice idea! It's definitely something for the team to consider and we'll make sure it reaches them. Keep rocking,True
 other,True,unclassified_intent,"We don't have any specific info to share about this, but make sure to keep an eye out on the idea in the community",True
-account_access,False,none,"We hear you. We're always testing things in order to improve Spotify. Rest assured, we've passed your feedback on to our devs. Give us a shout for anything else",True
+other,True,unclassified_intent,"We hear you. We're always testing things in order to improve Spotify. Rest assured, we've passed your feedback on to our devs. Give us a shout for anything else",True
 playback_technical,False,none,Hi again! Can you DM us your account's username or email address? We'll take a look under the hood,True
 other,True,unclassified_intent,Hi Indriani! Help's here. Can you try clearing your browser's cache/cookies and refreshing? Keep us posted,True
 other,True,unclassified_intent,Hey! We've just replied to your DM. Check it out. Let's carry on chatting there,True
@@ -79,17 +79,17 @@ account_access,False,none,"Hey there! Sorry, we didn't quite catch that. Can you
 other,True,unclassified_intent,Hi! Help's here. Can you send us the Song Link? Just tap the three dots &gt; Share &gt; Copy Link. What country is your account set to?,True
 account_access,False,none,Hi Freddie! Can you shoot over your account's username and email address? We'll check things out backstage,True
 other,True,unclassified_intent,Hi Bulent! Help's arrived. Can you DM us all your Spotify accounts' email addresses? We'll take a look backstage 🔍,True
-other,True,unclassified_intent,2. Could you DM us any other usernames or email addresses you might've used for Spotify? We'll check things out,True
+other,True,unclassified_intent,Thanks for letting us know. Can you DM us your account info? We'll take a look backstage,True
 billing_subscription,False,none,"We hear you! To help make it happen, we recommend showing your support for the idea here: 🙂",True
 other,True,unclassified_intent,Hey there! We're currently working on it as we speak. Be sure to stay tuned,True
 other,True,unclassified_intent,"We're working on this as we speak, but we don't have a release date yet. Watch this space!",True
 other,True,unclassified_intent,"Hey! Fingers crossed we'll be able to have it soon, but there's info about Spotify content here:",True
 billing_subscription,False,none,Hey Annie! Can you DM us your account's username or email address? We'll take a look backstage,True
-account_access,False,none,Hi! We've just sent you a bit more info over DM. We'll carry on helping out there,True
+other,True,unclassified_intent,Hi! We've just sent you a bit more info over DM. We'll carry on helping out there,True
 other,True,unclassified_intent,Hey Kaitlyn! You can get in touch with our Press team at Give us a shout for anything else,True
 billing_subscription,False,none,That's not cool! Could you fire us a DM with your account's username or email address? We'll see what's happening backstage,True
 other,True,unclassified_intent,Hi. Sometimes content gets temporarily removed because of licensing changes. Hopefully we'll have it available again soon!,True
-billing_subscription,False,none,"We appreciate your feedback. We’ll get this passed onto the right team. For anything else, we're just a tweet away",True
+other,True,unclassified_intent,"We appreciate your feedback. We’ll get this passed onto the right team. For anything else, we're just a tweet away",True
 other,True,unclassified_intent,Hey there! We’ll have it available to you as soon as it’s available to us.,True
 billing_subscription,False,none,Does logging out &gt; restarting the device &gt; logging back in help? Keep us posted,True
 other,True,unclassified_intent,Hi there! We've just sent a DM your way. Let's carry on chatting there,True
@@ -100,14 +100,14 @@ other,True,unclassified_intent,Hey Edmond! Thanks for the feedback – we apprec
 other,True,unclassified_intent,Hi there! We're launching in new countries as often as possible. Be sure to add your email at,True
 other,True,unclassified_intent,"Hey Kieron, help's here! Could you try inviting them using an incognito window? Keep us posted",True
 other,True,unclassified_intent,Could you DM us your account's email address or username? We'll take a look under the hood,True
-content_availability,False,none,"Hey! Taylor Swift's 'Reputation' isn't available to stream just yet. For now, check out the singles:",True
+other,True,unclassified_intent,"Hey! Taylor Swift's 'Reputation' isn't available to stream just yet. For now, check out the singles:",True
 other,True,unclassified_intent,"Hey! We’d love to have all of her stuff available, but we have some info about content here:",True
 other,True,unclassified_intent,"2: number of Suggested Tracks you get, try adding more artists into your playlists. Let us know if you need anything else",True
 billing_subscription,False,none,Hi Rebecca! Can you DM us your account's username or email address? We'll take a look backstage,True
-other,True,unclassified_intent,Hey! NUS is currently unavailable as a discount option. We're afraid we can only suggest getting UNiDAYS to sign up for the discount,True
+billing_subscription,False,none,Hey! NUS is currently unavailable as a discount option. We're afraid we can only suggest getting UNiDAYS to sign up for the discount,True
 other,True,unclassified_intent,"Hey! We appreciate your feedback, and we'll surely pass them on to the right folks. If you need us again, you know where to find us",True
 other,True,unclassified_intent,We've just sent you a bit more info over DM. We'll carry on helping out there 🙂,True
-account_access,False,none,Hey there! We've just sent a DM your way. Let's carry on chatting there,True
+other,True,unclassified_intent,"Hi there, we'd be glad to lend a hand! What's going on exactly? Could you also DM us your account's username or email address? We'll see what we can suggest",True
 other,True,high_distress,"1: Hey! We can help out in English via Twitter, but we also have Spanish support via email at",True
 other,True,unclassified_intent,"Hey Jeff, help's here! You can easily share playlists on social media with a playlist link, Just tap the three dots &gt; Share &gt; Copy Link",True
 playback_technical,False,none,Hey there! This doesn't sound good. What issues are you having and on what device? We'll see what we can suggest 🙂,True
@@ -117,13 +117,13 @@ other,True,unclassified_intent,"Thanks for giving it a go. Just to clarify, are 
 other,True,unclassified_intent,"Hey! Don’t worry, we can help. What’s happening exactly? We'll see what we can suggest 🙂",True
 other,True,unclassified_intent,"Hey Alexander, help's here! Can you DM us your account's email address? We'll check backstage",True
 other,True,unclassified_intent,We appreciate the feedback and will make sure it reaches the right folks. You can still play non-saved tracks: 🙂 /L,True
-billing_subscription,False,none,Sorry to keep you waiting! We've just replied to your DM. Let's continue chatting there,True
+billing_subscription,False,none,Hey there! Help's here. Can you let us know how we can assist? Keep us posted,True
 other,True,unclassified_intent,"Sorry, but the option to disable this isn't available on the web player. Have you tried restarting your device to see if it helps?",True
 other,True,unclassified_intent,"Hey Pravalika, we didn't mean to scare you. Don't worry, we'll pass your feedback on to the right people",True
 other,True,unclassified_intent,Hi! We've just sent you a bit more info over DM. We'll carry on helping out there,True
 other,True,high_distress,"No worries! We'll make sure to pass your thoughts on to the team. For now, we'd suggest voting for the idea from the link we've sent 🎶",True
 billing_subscription,True,billing_dispute,Hey Sharon! Can you DM us your account's email address and username? We'll take a look backstage,True
-account_access,False,none,Hey Juan! What's going on? Could you DM us your account's email address and username also? We'll take a look backstage,True
+billing_subscription,False,none,Hey Juan! What's going on? Could you DM us your account's email address and username also? We'll take a look backstage,True
 other,True,unclassified_intent,"Hi there! How many tracks would you say you have in Songs (roughly)? e.g. 100, 1000, 5000, or more?",True
 other,True,unclassified_intent,Hey Louis! We've just replied to your DM. Let's continue chatting there,True
 other,True,unclassified_intent,"Hey! Not to worry, we're launching in new countries as often as possible. Be sure to add your email at",True
@@ -139,12 +139,12 @@ other,True,unclassified_intent,"Hi! We don't have any info on this right now, bu
 other,True,high_distress,"Hi! In your country, a Premium for Family subscription costs ₱194 per month. You can find out more info at",True
 other,True,unclassified_intent,Hey there! We're launching in new countries as often as possible. Be sure to add your email at 😁,True
 other,True,unclassified_intent,Thanks. Does restarting your device - including removing the battery for 30 seconds if possible - help at all?,True
-other,True,unclassified_intent,Hi Matt! Can you fire over your account's email address via DM? We'll check it out and see what we can do for you,True
+account_access,False,none,Hi Matt! Can you fire over your account's email address via DM? We'll check it out and see what we can do for you,True
 other,True,unclassified_intent,"Hey Yann, help's here! Can you let us know the device, operating system, and Spotify version you're using? We'll see what we can suggest",True
-feature_request_feedback,False,none,"Got it! Just to check, are you using the the desktop app? Keep us posted",True
+other,True,unclassified_intent,"Got it! Just to check, are you using the the desktop app? Keep us posted",True
 billing_subscription,False,none,"Hey Caitlin! We'll let the right folks know it's something you'd like to see. If anything else comes up, just give us a shout",True
 other,True,unclassified_intent,Hey! Users who stream from one of the 15 Stranger Things playlists/albums will get to experience what it's like to be in the Upside Down. You can start with finding your character match here: We're here for you if there's anything else,True
-account_access,False,none,"Hey Jeremiah️. We've made a few tweaks backstage, so this should now be fixed up. Let us know if not! 🙂",True
+other,True,unclassified_intent,"Hey Jeremiah️. We've made a few tweaks backstage, so this should now be fixed up. Let us know if not! 🙂",True
 other,True,unclassified_intent,"Hey! We're afraid this isn't possible right now, but you can show your support for the idea on our Community:",True
 other,True,unclassified_intent,Hey there! We’ll have it available to you as soon as it’s available to us.,True
 other,True,unclassified_intent,No worries! Let us know if we can help you with anything else,True
@@ -153,7 +153,7 @@ billing_subscription,False,none,Hey Bridget! We have the answer to this question
 playback_technical,False,none,"Hey Hasse! We can help out in English via Twitter, but we also have Swedish support through email at If you'd like to carry on here, just let us know",True
 billing_subscription,True,billing_dispute,Hi! Help's here. Can you DM us your account's username or email address? We'll take a look under the hood,True
 other,True,high_distress,"Hey there! Hey, help's here! Hope you don't mind if we answer in English. What's happening exactly? We'll see what we can suggest",True
-billing_subscription,False,none,"Hey, that's not cool! Could you DM us your account's username or email address? We'll check behind the scenes",True
+other,True,unclassified_intent,"Hey, that's not cool! Could you DM us your account's username or email address? We'll check behind the scenes",True
 other,True,unclassified_intent,"Hi there! Thanks for the feedback. We'll be sure to pass it onto the right team. If you have other questions, give us a shout",True
 other,True,unclassified_intent,"Hey David, help's here! We're afraid that we're unable to unlink Spotify from your old PSN account on our end, but our friends over should be able to lend a hand. If you need anything else, just give a shout",True
 billing_subscription,False,none,No worries! Can you DM us your account's email address? We'll take a look backstage,True
@@ -168,7 +168,7 @@ other,True,unclassified_intent,Hey! We've just replied to your DM. We'll carry o
 other,True,unclassified_intent,Hmm. Looks like you'll need to reach out to your distributor to get this fixed up. There's some more info here:,True
 other,True,unclassified_intent,"Hey Katharine! Can you let us know the device, OS, and Spotify version you're using? We'll see what we can suggest",True
 other,True,unclassified_intent,We hear you 🎧 Rest assured your feedback will be passed on to the right folks,True
-other,True,unclassified_intent,We're glad you're back on track. Feel free to send a message our way if you need us again,True
+other,True,unclassified_intent,Awesome! Let us know if you ever need us again. We'd be...,True
 other,True,unclassified_intent,We can see how that’d be handy. Thanks for taking the time to reach out – your feedback's been noted 📝,True
 other,True,unclassified_intent,Hey Jay! Thanks for letting us know. Everything’s looking good on our end now - are you still having this issue?,True
 other,True,unclassified_intent,"Hey there! Sorry, we didn't quite catch that. Can you tell us more about what's happening? We'll be waiting for your reply",True
@@ -198,9 +198,9 @@ billing_subscription,False,none,Hey there! Can you DM us your account's email ad
 other,True,unclassified_intent,Hey Louis! We've just replied to your DM. Let's continue chatting there,True
 account_access,False,none,Hey there! We've just sent you a DM. Let's continue chatting there,True
 other,True,unclassified_intent,Hey there! Everything should be running smoothly now. Let us know if you're still getting issues,True
-other,True,unclassified_intent,"Sorry to hear about this. Don't worry, we'll be sure to pass your feedback on to the right folks. Give us a shout if you need us again",True
+playback_technical,False,none,"Sorry to hear about this. Don't worry, we'll be sure to pass your feedback on to the right folks. Give us a shout if you need us again",True
 billing_subscription,False,none,Hey Abbey! Can you tell us a bit more about what's going on? We'll see what we can suggest,True
-other,True,unclassified_intent,"Hey! This is related to our stranger things playlist: Once you play it and let it idle for a bit, you should see something cool 🙂",True
+billing_subscription,False,none,"Hey! This is related to our stranger things playlist: Once you play it and let it idle for a bit, you should see something cool 🙂",True
 billing_subscription,False,none,"We do accept prepaid cards issued by Visa, MasterCard, American Express, and Discover. Just make sure your payment card meet these requirements: Give us a shout if you have other questions",True
 account_access,False,none,"Hi there! That doesn't sound good. Are you getting any errors when streaming on Extreme quality while using your mobile data? If so, send us a screenshot so we can take a closer look",True
 other,True,unclassified_intent,Hi there! Can you let us know the device and operating system you're using? We'll take a look,True
@@ -239,7 +239,7 @@ billing_subscription,False,none,Hi Andy! There's currently a 10k limit in Your M
 other,True,unclassified_intent,"Just to make sure we're on the same page, are you trying to sync local files to your phone? If so, we'd suggest following the steps at",True
 account_access,False,none,Hey Mel! Can you DM us your account's username and email address? We'll take a look backstage,True
 other,True,unclassified_intent,Hey! Everything looks good on your account from our end. Can you share more info about what's happening? We'll be waiting for your reply,True
-account_access,False,none,Hi Geoff! We've just sent you a bit more info over DM. We'll carry on helping out there 🙂,True
+other,True,account_security,Hi Geoff! We've just sent you a bit more info over DM. We'll carry on helping out there 🙂,True
 other,True,unclassified_intent,Hey Thomas! The cavalry's here. How can we help you today? Can you tell us more about what's going on? We'll see what we can suggest,True
 other,True,unclassified_intent,Hey there! We're currently working on it as we speak. Be sure to stay tuned,True
 account_access,False,none,Hey Jes! Can you send us a DM with any email addresses or usernames you could've used for your account? We'll take a look under the hood,True
