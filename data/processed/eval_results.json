@@ -1,0 +1,224 @@
+{
+  "results": [
+    {
+      "name": "baseline_trivial",
+      "intent_accuracy": 0.472,
+      "intent_macro_f1": 0.1069,
+      "intent_confusion_matrix": {
+        "labels": [
+          "account_access",
+          "billing_subscription",
+          "content_availability",
+          "feature_request_feedback",
+          "other",
+          "playback_technical"
+        ],
+        "matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            21,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            58,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            6,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            16,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            118,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            31,
+            0
+          ]
+        ]
+      },
+      "escalation_precision": 0.0,
+      "escalation_recall": 0.0,
+      "escalation_f1": 0.0,
+      "false_auto_handle_count": 127,
+      "false_auto_handle_rate": 1.0,
+      "false_escalation_count": 0,
+      "false_escalation_rate": 0.0,
+      "n": 250
+    },
+    {
+      "name": "baseline_simple",
+      "intent_accuracy": 0.704,
+      "intent_macro_f1": 0.5216,
+      "intent_confusion_matrix": {
+        "labels": [
+          "account_access",
+          "billing_subscription",
+          "content_availability",
+          "feature_request_feedback",
+          "other",
+          "playback_technical"
+        ],
+        "matrix": [
+          [
+            17,
+            2,
+            0,
+            0,
+            2,
+            0
+          ],
+          [
+            8,
+            37,
+            0,
+            0,
+            12,
+            1
+          ],
+          [
+            0,
+            0,
+            1,
+            0,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            5,
+            11,
+            0
+          ],
+          [
+            4,
+            0,
+            1,
+            1,
+            112,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            0,
+            25,
+            4
+          ]
+        ]
+      },
+      "escalation_precision": 1.0,
+      "escalation_recall": 0.0472,
+      "escalation_f1": 0.0902,
+      "false_auto_handle_count": 121,
+      "false_auto_handle_rate": 0.9528,
+      "false_escalation_count": 0,
+      "false_escalation_rate": 0.0,
+      "n": 250
+    },
+    {
+      "name": "system_full",
+      "intent_accuracy": 0.728,
+      "intent_macro_f1": 0.62,
+      "intent_confusion_matrix": {
+        "labels": [
+          "account_access",
+          "billing_subscription",
+          "content_availability",
+          "feature_request_feedback",
+          "other",
+          "playback_technical"
+        ],
+        "matrix": [
+          [
+            13,
+            5,
+            0,
+            0,
+            3,
+            0
+          ],
+          [
+            2,
+            46,
+            0,
+            0,
+            10,
+            0
+          ],
+          [
+            0,
+            0,
+            5,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            4,
+            12,
+            0
+          ],
+          [
+            4,
+            4,
+            3,
+            0,
+            105,
+            2
+          ],
+          [
+            1,
+            1,
+            1,
+            0,
+            19,
+            9
+          ]
+        ]
+      },
+      "escalation_precision": 0.7233,
+      "escalation_recall": 0.9055,
+      "escalation_f1": 0.8042,
+      "false_auto_handle_count": 12,
+      "false_auto_handle_rate": 0.0945,
+      "false_escalation_count": 44,
+      "false_escalation_rate": 0.3577,
+      "n": 250
+    }
+  ],
+  "grounded_rate": 1.0
+}

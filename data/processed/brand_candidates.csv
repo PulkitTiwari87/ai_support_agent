@@ -1,0 +1,11 @@
+brand,n_conversations,pct_with_support_reply,avg_turns,vocab_diversity
+AmazonHelp,81092,99.8,4.39,0.1323
+AppleSupport,76639,99.7,2.84,0.0869
+Uber_Support,41185,99.7,2.95,0.0898
+SpotifyCares,27910,99.7,3.18,0.0898
+comcastcares,23442,99.5,2.86,0.0879
+TMobileHelp,22322,99.5,3.24,0.1019
+XboxSupport,12841,98.8,3.71,0.0789
+AskPlayStation,12237,99.7,3.22,0.089
+AskPayPal,9238,99.4,2.69,0.1116
+VerizonSupport,8126,99.6,4.99,0.0814

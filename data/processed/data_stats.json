@@ -1,0 +1,9 @@
+{
+  "brand": "SpotifyCares",
+  "raw_conversations": 27910,
+  "extracted_pairs": 36877,
+  "deduped_pairs": 36877,
+  "eval_pool": 250,
+  "dev_pool": 529,
+  "retrieval_corpus": 36004
+}

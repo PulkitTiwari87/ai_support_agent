@@ -1,0 +1,7 @@
+{
+  "judge_method_actually_used": "heuristic",
+  "note": "LLM judge requires ANTHROPIC_API_KEY; not configured in this environment -- heuristic judge used instead.",
+  "n": 250,
+  "heuristic_grounded_count": 250,
+  "heuristic_length_ok_count": 247
+}
