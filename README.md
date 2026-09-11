@@ -172,6 +172,13 @@ regression.
 4. **Single brand, single language (English), 2017-era tweets.** No claim
    of generalization to other brands, languages, or current-day Spotify UX
    is made or implied.
+5. **The 5.5% false-auto-handle rate is not a validated real-world safety
+   rate.** It's a measurement against a 250-example, rule-derived,
+   single-rater-spot-checked golden set (points 1-2 above), not a
+   production-scale audit with independent human judgment. Treat it as
+   "how this system compares to two baselines on this specific test set,"
+   not as a calibrated estimate of how often a deployed version of this
+   agent would fail to escalate a real customer issue.
 
 ## Baselines
 - **Trivial**: majority-class intent (`other`), one canned reply, never
