@@ -6,55 +6,61 @@ golden set). Regenerate with `python scripts/evaluate.py`.
 
 ## Top failure modes (real, inspected examples)
 
-**Update (2nd verification pass, current classifier)**: re-measured
-precisely -- **100% of escalation errors (55/55: 7 false-auto-handle + 48
-false-escalation) involve `other` on the gold-label side, the predicted
-side, or both** (more precise than the earlier ~85% estimate; consistent
-across two independent measurements: 56/56 with the word-only classifier,
-55/55 with the current word+char-n-gram classifier). Escalation rate by
-gold intent is 1.0 for `other` and near-0 for every real class, so this is
-a clean, single-cause failure mode. Two fix attempts:
-- Probability-override threshold (tuned on held-out `dev_pool`): **rejected**
-  -- made every golden-set metric worse, including false-auto-handle rate
-  (0.095->0.134).
-- Word+char n-gram features (tuned on held-out `dev_pool`): **kept** --
-  cut false-auto-handle from 0.095 to 0.055 (12->7 cases), but macro-F1
-  dropped 0.620->0.591 and false-escalation rose 0.358->0.390. A tradeoff,
-  not a fix.
+**Update (3rd pass -- classifier improvement pass, largely resolved)**:
+a diagnosis-first classifier improvement pass (see
+`planning/10_EVALUATION.md` "Classifier improvement pass") found the true
+root cause was training-data scarcity for minority classes, expanded the
+training pool 69x using the previously-untapped `retrieval_corpus.csv`
+(same brand, leakage-safe), and re-tuned features/classifier on that
+expanded pool. Result: **false-auto-handle eliminated entirely (0/127, was
+7/127)**, and **false-escalation cut more than in half (13/123, was
+48/123)** -- both directions of the same failure mode improved together,
+unlike either of the two earlier fix attempts (below), which each only
+moved one metric at the expense of another.
 
-See `planning/18_DECISION_LOG.md` #15/#18 and `planning/10_EVALUATION.md`.
-The root cause (65% `other` share in weak training labels, with
-minority classes as small as 11-19 examples) remains unresolved by either
-experiment.
+Earlier fix attempts, kept for the record:
+- Probability-override threshold (tuned on held-out `dev_pool`, same 423
+  examples): **rejected** -- made every golden-set metric worse, including
+  false-auto-handle rate (0.095->0.134).
+- Word+char(3,5) n-gram features (tuned on held-out `dev_pool`, same 423
+  examples): **kept at the time** -- cut false-auto-handle from 0.095 to
+  0.055 (12->7 cases), but macro-F1 dropped 0.620->0.591 and
+  false-escalation rose 0.358->0.390. A tradeoff, not a fix -- superseded
+  by the data-expansion pass below.
 
-### 1. Nearly all escalation errors (both directions) trace to one root cause: intent collapsing to `other`
-- **7 false-auto-handle cases** (system says handle, gold says escalate):
-  every single one has `pred_intent` != `other` while `gold_intent == other`
-  (escalation_reason=`unclassified_intent`). Example: `sp_019350`, "I can't
-  log into my account. It says I use Facebook, but let me do it" -- the
-  learned classifier correctly recognized this as `account_access`, but the
-  golden-label rules couldn't match it, defaulted to `other`, and the
-  `unclassified_intent -> escalate` fallback fired. This is *golden-label*
-  brittleness showing up as an apparent system failure, not the system
-  misunderstanding the message.
-- **48 false-escalation cases** (system escalates, gold says don't): all 48
-  have `pred_intent == other` while `gold_intent` is a real class (mostly
-  `billing_subscription`). Example: `sp_035655`, "Every month, my app dumps
-  15 GB of downloaded playlists and forces me to download all of it again"
-  -- gold-labeled `billing_subscription` (per the taxonomy rules), but the
-  classifier's confidence collapsed to `other` on this noisy, run-on
-  sentence.
-- **Root cause**: `other` is simultaneously (a) the taxonomy's genuine
-  catch-all for ambiguous text and (b) the golden labeler's fallback when
-  its regex coverage is incomplete and (c) the classifier's fallback when
-  training signal is weak. All three collapse onto the same label, so
-  errors compound in both directions around this one class.
-- **Fix attempted**: broadened taxonomy regex coverage (see decision log
-  item 13, `planning/18_DECISION_LOG.md`), which reduced but did not
-  eliminate this. A real fix would need either more training data per class
-  or merging `other` handling into confidence-based escalation rather than
-  label-based (already partially done: `retrieval_confidence < 0.15` also
-  triggers escalation independent of intent).
+See `planning/18_DECISION_LOG.md` #15, #18, #22-24 and
+`planning/10_EVALUATION.md`.
+
+### 1. Intent collapsing to `other` drove most escalation errors -- now mostly resolved by training-data expansion, not by touching the taxonomy or golden labels
+- **Root cause, confirmed with per-class evidence**: a diagnostic
+  train/held-out-dev/golden comparison showed the previous classifier's
+  per-class F1 tracked training-example count almost exactly
+  (`feature_request_feedback`, 9 training examples: dev F1 0.00;
+  `billing_subscription`, 71 examples: dev F1 0.92) -- textbook overfitting
+  from too little data, not a labeling or architecture problem per se.
+- **Fix**: expanded the training pool from 529 to 36,533 real,
+  weakly-labeled SpotifyCares messages by reusing `retrieval_corpus.csv`
+  (previously used only for retrieval grounding). A learning curve
+  confirmed this was justified (held-out DEV macro-F1 0.606 -> 0.787 at
+  just 10% of the expansion) before committing to it. Re-tuned TF-IDF
+  features (word(1,2)+char(3,7)) and classifier (LinearSVC) on the
+  expanded pool.
+- **Result on golden**: false-auto-handle 7->0, false-escalation 48->13,
+  intent macro-F1 0.591->0.894, `other`-class recall on golden 107/118 (old
+  word-only model) -> 118/118.
+- **Not fully eliminated**: the 13 remaining false-escalation cases are
+  ALL still `pred_intent == other` while gold is a real class (mostly
+  `playback_technical`, 6/13; `feature_request_feedback`, 4/13) --
+  see example `sp_034363` (playback) and `sp_027899` (feature request).
+  Same failure mode, smaller residual. More data plus a genuinely
+  independent (non-regex) label source is the most likely next lever
+  (see README "One additional week" #1).
+- **Important caveat, not new but sharper now**: training labels for the
+  expanded pool come from the same regex family that built the golden
+  labels. High agreement partly reflects the classifier converging on the
+  labeling function itself, not necessarily independent ground truth. See
+  `planning/10_EVALUATION.md` and README "What's misleading about the
+  headline number."
 
 ### 2. Regex word-form brittleness on security-relevant language (found, then fixed this pass)
 `sp_024683`: "Somebody appears to have been **hacking** my spotify..." was
@@ -111,10 +117,12 @@ under test). This inflates the apparent size of the `other` class and, per
 failure mode #1, is the single largest driver of the reported escalation
 error rates in both directions.
 
-## What was NOT attempted
-Given the size of failure mode #1, the highest-value next fix would be
-retraining the intent classifier with the `other` class either downweighted
-or split into sub-categories, or replacing golden-label fallback logic so
-`other` isn't simultaneously an intent class and an escalation trigger. Not
-attempted in this pass due to time -- flagged as the top item in "one
+## What was attempted and what remains
+Failure mode #1's highest-value fix (expanding training data rather than
+further tuning the same 423-example pool) was attempted this session and
+worked: false-auto-handle eliminated, false-escalation cut by more than
+half. What's NOT attempted: independent (non-regex-derived) re-labeling to
+determine how much of the remaining agreement is genuine language
+understanding vs. convergence on the same labeling function used to build
+both the training and evaluation labels -- flagged as the top item in "one
 additional week" (see README).

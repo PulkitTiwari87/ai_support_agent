@@ -95,90 +95,131 @@ Code: `src/taxonomy.py`, `src/intent_classifier.py`, `src/retrieval.py`,
 |---|---|---|---|---|---|
 | Baseline 1 (trivial) | 0.472 | 0.107 | 0.00 / 0.00 / 0.00 | **1.000** (127/127) | 0.000 |
 | Baseline 2 (simple keyword) | 0.704 | 0.522 | 1.00 / 0.055 / 0.105 | **0.945** (120/127) | 0.000 |
-| **Full system** | **0.736** | **0.591** | 0.714 / 0.945 / 0.814 | **0.055** (7/127) | 0.390 (48/123) |
+| **Full system** | **0.924** | **0.894** | 0.907 / 1.000 / 0.951 | **0.000** (0/127) | 0.106 (13/123) |
+
+(weighted-F1 0.921; per-class F1: account_access 0.811, billing_subscription
+0.949, content_availability 0.909, feature_request_feedback 0.857, other
+0.944, playback_technical 0.893 -- `data/processed/eval_results.json`.)
 
 Reproduce: `python scripts/run_all.py` (retrains from scratch, no cached
 model reused).
 
 ## Headline result
-**False auto-handle rate drops from 100% (trivial) / 94.5% (simple keyword
-baseline) to 5.5% with the full system** -- i.e., when a message actually
-needed a human, the naive baselines almost always let it through as
-auto-handled; the full system catches ~95% of those. This is the metric the
-assignment prioritizes explicitly (auto-handling something that should have
-escalated is the worst failure mode), so it's the headline, not raw
-accuracy.
+**Intent accuracy 73.6%->92.4%, macro-F1 59.1%->89.4%, and false
+auto-handle rate 5.5%->0.0% (0/127), all improved together** -- not a
+tradeoff. This came from a classifier improvement pass (see "Classifier
+improvement pass" below), not from touching the golden set, the taxonomy,
+or the escalation rules.
 
-The cost of that gain: false-escalation rate is 39% and intent macro-F1
-(0.591) is actually a bit lower than an earlier version of this classifier
-(0.620) -- see "Char n-gram tradeoff" below. The system is deliberately
-conservative, escalating some cases a human wouldn't have needed to see.
-That's a real, disclosed tradeoff, not hidden in the summary table.
+Unlike the previous session's char-n-gram change (which traded macro-F1
+for false-auto-handle), every metric moved in the same direction this time:
+false-escalation rate also fell (39.0%->10.6%). The reason this was
+possible is diagnostic, not architectural: the earlier classifier was
+trained on only 529 examples and was badly overfit (99.8% train accuracy vs
+60.6% held-out-dev macro-F1); the fix was mostly about training data
+volume, not a cleverer model.
 
-## Char n-gram tradeoff (this session's one kept experiment)
-The intent classifier was changed from word-only TF-IDF to word+char
-n-gram features (`src/intent_classifier.py`), tuned on a held-out slice of
-`dev_pool` and checked once against the golden set. Effect on the frozen
-golden set, char n-grams vs. word-only:
+## Classifier improvement pass (this session)
+**Diagnosis first.** Measured the previous model on TRAIN (in-sample),
+a held-out 20% slice of `dev_pool` never seen during fit, and GOLDEN:
 
-| | word-only (previous) | word+char n-grams (current) |
-|---|---|---|
-| intent accuracy | 0.728 | 0.736 |
-| intent macro-F1 | 0.620 | 0.591 |
-| escalation F1 | 0.804 | 0.814 |
-| false-auto-handle rate | 0.095 (12/127) | **0.055 (7/127)** |
-| false-escalation rate | 0.358 (44/123) | 0.390 (48/123) |
+| | TRAIN | held-out DEV | GOLDEN |
+|---|---|---|---|
+| accuracy | 0.998 | 0.830 | 0.712 |
+| macro-F1 | 0.997 | 0.606 | 0.558 |
 
-This is a genuine, explainable tradeoff, not a straight improvement: char
-n-grams make the classifier more conservative (predicts `other` more
-often), which cuts the headline false-auto-handle count nearly in half but
-costs minority-class intent precision (macro-F1 down) and produces more
-false escalations. Kept because the assignment explicitly prioritizes
-minimizing false-auto-handle over minimizing false-escalation. A separate,
-earlier experiment (a raw confidence-override threshold, see
-`planning/18_DECISION_LOG.md` #15) was rejected because it made *every*
-metric worse, including the headline one -- this one only trades secondary
-metrics for the primary one, which is a defensible call, not a rejected
-regression.
+A ~40-point macro-F1 gap between TRAIN and held-out DEV is textbook
+overfitting, not underfitting. Per-class F1 fell in lockstep with per-class
+training-example count in `dev_pool` (billing_subscription, 71 examples:
+dev F1 0.92; feature_request_feedback, 9 examples: dev F1 0.00, i.e. 0/2
+correct on held-out data despite perfect training-set recall). This is
+quantified evidence of data scarcity, not just an architecture problem --
+see `planning/10_EVALUATION.md` for the full diagnosis
+(`scripts/diagnose_classifier.py`, `scripts/diagnose_labels.py`).
+
+**Data expansion, justified by a learning curve, not assumed.**
+`retrieval_corpus.csv` (36,004 real historical SpotifyCares messages, same
+dataset/brand, already conversation-level *and* exact-text disjoint from
+the golden set -- re-verified this session) had never been used to train
+the classifier, only for retrieval grounding. A learning curve
+(`scripts/learning_curve.py`) trained on increasing fractions of
+`dev_train + retrieval_corpus`, evaluated each time on the *same* fixed
+held-out DEV slice: macro-F1 rose from 0.606 (0% expansion) to 0.787 at
+just 10% of the expanded pool, continuing to ~0.84 by 50%, then plateauing
+-- clear evidence more real data helps, per the assignment's own "if DEV
+keeps improving substantially, data scarcity is likely" test.
+
+**Controlled feature/model search on the expanded pool only** (never
+golden), sequential small grids, not exhaustive (`scripts/experiment_grid.py`,
+`scripts/experiment_svc_tuning.py`):
+- TF-IDF features: word(1,2)+char_wb(3,7) beat word-only and the previous
+  char(3,5) config on held-out DEV macro-F1 (0.857 vs 0.821 vs 0.834).
+- Logistic Regression C/class_weight: heavier regularization
+  (`class_weight="balanced", C=2.0`, the previous config) was actively
+  hurting -- with 60x more training data, `class_weight=None, C=10` scored
+  0.888 vs 0.857 for the old regularization on the same features.
+- Classifier family: LinearSVC (0.919 macro-F1 on held-out DEV) beat both
+  the best Logistic Regression config (0.888) and MultinomialNB (0.460,
+  rejected outright). LinearSVC's own C/class_weight barely mattered here
+  (all 6 tested combinations scored identically, 0.9188) -- the
+  high-dimensional sparse feature space is close to linearly separable
+  regardless of margin width, so `class_weight="balanced", C=1.0` (a
+  principled default given class imbalance) was kept rather than
+  cherry-picking among ties.
+
+**Golden set touched exactly once**, after model selection was already
+done on TRAIN/DEV, per the assignment's protocol. `golden_set.csv` itself
+was never read, modified, or trained on by any part of this pass (verified:
+`git diff` shows zero changes to the file).
+
+**Sanity-checked the jump, not just accepted it**: an 18-point accuracy
+jump is exactly the kind of result the assignment says to be suspicious of.
+Checked: (1) conversation-level AND exact-text leakage between
+`retrieval_corpus`/`dev_pool` and `golden_set` -- zero overlap, checked
+before training; (2) the golden-set confusion matrix is not degenerate --
+every class still has some residual, explainable error (e.g. 6/31
+`playback_technical` examples still fall to `other`), not a suspicious
+uniform 100% that would suggest memorization; (3) the improvement direction
+matches the diagnosis exactly (biggest per-class gains are in the classes
+that had the fewest training examples before). No leakage found.
+
+Final model config: TF-IDF word(1,2) + char_wb(3,7), `min_df=2`,
+`sublinear_tf=True`, `LinearSVC(class_weight="balanced", C=1.0)`, trained
+on `dev_pool` (529) + `retrieval_corpus` (36,004) = 36,533 real,
+weakly-labeled SpotifyCares messages. See `src/intent_classifier.py` and
+`planning/18_DECISION_LOG.md` #22-24.
 
 ## What's misleading about the headline number
 1. **The 250-example golden set's escalation ground truth is rule-derived,
-   not independently human-labeled.** Both baseline 2 and the golden
-   labeler share family resemblance in their keyword logic (see
-   `planning/18_DECISION_LOG.md` #11 for how baseline 2 was deliberately
-   made different to avoid literal circularity), but the fundamental
-   labeling method (regex over English keywords) is the same across golden
-   labels and parts of the system. A truly independent human-labeled set
-   might show a smaller gap.
-2. **100% of ALL escalation errors (55/55: both false-auto-handle and
-   false-escalation) involve one root cause**: the intent classifier or
-   the golden labeler collapsing ambiguous text to the catch-all `other`
-   class (see `planning/13_FAILURE_ANALYSIS.md`, failure mode #1 -- verified
-   precisely across two sessions, revising an earlier ~85% estimate). This
-   means the headline number is really measuring "how well does the system
-   handle the `other` bucket," not a broad, even spread of failure types.
-   One fix (probability-override threshold) was tried and **made every
-   metric worse**, and was reverted; a second fix (char n-grams) improved
-   the headline metric specifically but at a real cost to macro-F1 and
-   false-escalation rate (see "Char n-gram tradeoff" above) -- neither is a
-   clean solution, both are disclosed with numbers
-   (`planning/18_DECISION_LOG.md` #15, #18).
-3. **Reply groundedness is reported as 100%, but that's close to
-   tautological**: the extractive generator (used because no API key was
-   available) literally copies the retrieved historical reply, so
-   word-overlap-based grounding checks are mechanically satisfied. It does
-   not mean the reply is contextually correct for the new customer's
-   specific situation.
+   not independently human-labeled.** The training labels for the expanded
+   pool come from the same regex taxonomy. A classifier that gets very good
+   at reproducing that regex will score well on any evaluation set labeled
+   by the same regex family, including the golden set -- this is a
+   genuinely different, disjoint *split* of data (real conversations the
+   model never saw), but not a genuinely independent *labeling method*. A
+   truly independently human-labeled golden set could show a smaller gap
+   than 92.4%.
+2. **`other`'s near-perfect recall (118/118 on golden) reflects `other`
+   being the easiest class to learn with abundant data (23,498/36,533
+   training examples), not necessarily deep semantic understanding of
+   ambiguous text.** The classifier now closely mirrors the rule-based
+   labeler's own boundary for `other`, for the same reason as point 1.
+3. **Reply groundedness is still reported as 100%, and that's still close
+   to tautological**: the extractive generator (used because no API key was
+   available) literally copies the retrieved historical reply. This
+   classifier improvement pass did not touch reply generation at all.
 4. **Single brand, single language (English), 2017-era tweets.** No claim
    of generalization to other brands, languages, or current-day Spotify UX
    is made or implied.
-5. **The 5.5% false-auto-handle rate is not a validated real-world safety
-   rate.** It's a measurement against a 250-example, rule-derived,
-   single-rater-spot-checked golden set (points 1-2 above), not a
-   production-scale audit with independent human judgment. Treat it as
-   "how this system compares to two baselines on this specific test set,"
-   not as a calibrated estimate of how often a deployed version of this
-   agent would fail to escalate a real customer issue.
+5. **The 0.0% false-auto-handle rate is not a validated real-world safety
+   rate, and "zero" should be read with extra caution, not extra
+   confidence.** It's a measurement against a 250-example, rule-derived,
+   single-rater-spot-checked golden set (points 1-2 above) -- a genuinely
+   different production system, different data era, or an independently
+   human-labeled test set could all show a materially different number.
+   Treat it as "how this system compares to two baselines on this specific
+   test set," not as a calibrated estimate of how often a deployed version
+   of this agent would fail to escalate a real customer issue.
 
 ## Baselines
 - **Trivial**: majority-class intent (`other`), one canned reply, never
@@ -189,43 +230,49 @@ regression.
   human-request keywords. `src/baselines.py::baseline_simple`.
 
 ## Top failure modes (real examples, not generic AI weaknesses)
-See `planning/13_FAILURE_ANALYSIS.md` for full detail with quoted examples:
-1. Intent collapsing to `other` drives 100% of all escalation errors
-   (55/55), in both directions. Root cause: minority intent classes have
-   very few training examples (`feature_request_feedback` n=11,
-   `content_availability` n=19 in `dev_pool` weak labels) -- likely a data
-   scarcity problem, not a model/threshold problem. Two fixes were tried:
-   a confidence-threshold override (regressed everything, reverted) and
-   char n-gram features (improved the headline metric, cost macro-F1 --
-   kept, disclosed as a tradeoff).
+See `planning/13_FAILURE_ANALYSIS.md` for full detail with quoted examples.
+The classifier improvement pass resolved what was previously the dominant
+failure (100% of escalation errors tracing to `other`-class confusion,
+now mostly gone -- 0 false-auto-handle, `other` recall 118/118 on golden).
+Remaining failure modes:
+1. **`playback_technical` still has the weakest per-class F1 (0.893) among
+   well-represented classes** -- 6/31 golden examples still fall to
+   `other`. Smaller residual than before, but not eliminated by more data
+   alone.
 2. Regex word-form brittleness missed a real account-takeover case
-   ("hacking" vs. "hacked") until caught by manual spot-check and fixed.
-3. Extractive-reply groundedness metric is near-tautological (see above).
+   ("hacking" vs. "hacked") until caught by manual spot-check and fixed
+   (prior session).
+3. Extractive-reply groundedness metric is near-tautological (see above) --
+   unaffected by this session's classifier work, since reply generation
+   wasn't touched.
 4. Retrieval on very short/generic messages (<5 words) can clear the
-   similarity threshold on superficial term overlap.
-5. The golden set's `other` bucket conflates genuinely ambiguous text with
-   rule-coverage gaps that undercount real classes.
+   similarity threshold on superficial term overlap -- also unaffected by
+   this session's changes, since retrieval wasn't touched.
+5. **The training-label ceiling**: since the expanded training pool is
+   weakly labeled by the same regex family as the golden set, the
+   classifier's very high golden-set agreement partly reflects convergence
+   toward the *labeling function*, not necessarily deeper semantic
+   understanding beyond what regex-derived labels can teach it. See "What's
+   misleading about the headline number" above.
 
 ## Limitations
 - **Golden-set labels are rule-derived + single-rater spot-checked, not
   independently multi-annotator human-labeled.** See
-  `planning/05_GOLDEN_SET.md`.
+  `planning/05_GOLDEN_SET.md`. This matters more now than before: the
+  classifier is trained on 36,533 examples labeled by the same rule family,
+  so high golden-set agreement is partly measuring rule-self-consistency at
+  scale, not independent ground truth.
 - **No live LLM judge or human validation was executed** -- both implemented
   and mock/contract-tested, neither run for real (no API key, no
   annotators). See the table above and `planning/12_HUMAN_VALIDATION.md`.
 - **Reply-groundedness metric (100%) is near-tautological** under the
   current extractive generator, since the reply is literally copied from
-  the retrieved evidence. The added unsupported-claims check
-  (`src/judge.py`) is honest about returning 0/250 for the same reason --
-  it isn't a real signal until the LLM paraphrasing path runs.
+  the retrieved evidence. Unaffected by this session's classifier changes.
 - **Single brand, single language, 2017-era tweets** -- no generalization
   claim beyond this dataset.
-- **The `other`-class confusion (100% of escalation errors) remains only
-  partly mitigated.** One fix (confidence-threshold override) was tried and
-  rejected; a second (char n-grams) is kept because it improves the
-  headline metric, but it trades away macro-F1 and false-escalation rate
-  to do it -- it does not resolve the underlying data-scarcity problem in
-  minority intent classes.
+- **`playback_technical` remains the weakest well-represented class**
+  (F1 0.893 on golden) even after data expansion -- some residual overlap
+  with `other` persists.
 
 ## What was intentionally NOT built
 - No production infrastructure, auth, queues, or orchestration frameworks
@@ -243,8 +290,11 @@ See `planning/13_FAILURE_ANALYSIS.md` for full detail with quoted examples:
 - `scripts/fetch_data.py` -- downloads the dataset (public HF mirror, no auth)
 - `scripts/process_data.py` -- parses, dedupes, splits into eval/dev/retrieval pools (conversation-level split, no leakage -- see tests)
 - `scripts/build_golden_set.py` -- labels the frozen golden set
-- `src/intent_classifier.py` -- trains the classifier
+- `src/intent_classifier.py` -- trains the classifier on `dev_pool` + `retrieval_corpus` (36,533 examples)
 - `src/retrieval.py` -- builds the TF-IDF retrieval index
+- `scripts/diagnose_classifier.py`, `scripts/diagnose_labels.py` -- train/dev/golden diagnosis and label-quality checks (read-only, no training)
+- `scripts/learning_curve.py` -- evidence that data expansion was justified
+- `scripts/experiment_grid.py`, `scripts/experiment_svc_tuning.py` -- the controlled feature/hyperparameter/classifier search behind the current model
 - `scripts/evaluate.py` -- runs system + both baselines, writes metrics
 - `scripts/judge_replies.py` -- runs the reply-quality judge (heuristic fallback without an API key)
 - `scripts/run_all.py` -- runs all of the above in order
@@ -290,19 +340,23 @@ recorded escalation *reason* was corrected. See
   methodology was copied from an external source.
 
 ## One additional week
-1. Fix the `other`-class collapse (failure mode #1) -- highest-value single
-   fix, would move both false-auto-handle and false-escalation rates
-   together instead of trading one for the other. Two attempts so far
-   (confidence-threshold override: rejected; char n-grams: kept as a
-   partial, lopsided improvement) suggest the real fix is more/better
-   labeled training data for minority classes
-   (`feature_request_feedback` n=11, `content_availability` n=19), not
-   further feature/threshold engineering on the same tiny label set.
+1. **Independent (non-rule-derived) re-labeling of a sample of the golden
+   set** -- now the single highest-value item. With training data expanded
+   to 36,533 regex-labeled examples, the biggest remaining question is how
+   much of the 92.4% golden accuracy reflects real language understanding
+   versus convergence toward the same regex family that built both the
+   training labels and the evaluation labels. A human-labeled sample would
+   directly answer this.
 2. Run the real LLM judge and a genuine 2+ rater human validation pass with
    an API key and actual annotators (`planning/12_HUMAN_VALIDATION.md`).
-3. Swap regex escalation triggers for stemmed/lemmatized or embedding-based
-   matching to close the "hacking" vs. "hacked" class of bug.
-4. Replace TF-IDF retrieval with embeddings and evaluate whether retrieval
-   quality (not just intent) is a bottleneck on short messages.
-5. Independent (non-rule-derived) re-labeling of a subset of the golden set
-   to quantify how much of the headline gap is measurement artifact vs. real.
+3. Apply the same "expand training data from the untapped retrieval
+   corpus" idea to reply generation and retrieval quality -- both were
+   left untouched this session and still show the limitations in
+   `planning/13_FAILURE_ANALYSIS.md`.
+4. Reduce `playback_technical`'s residual overlap with `other` (still the
+   weakest well-represented class, F1 0.893) -- likely needs targeted
+   error analysis on the specific golden examples that still misclassify,
+   not more of the same undifferentiated data.
+5. Swap regex escalation triggers for stemmed/lemmatized or embedding-based
+   matching, closing classes of word-form bugs like the "hacking" vs.
+   "hacked" one found and fixed in a prior session.

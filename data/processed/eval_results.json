@@ -4,6 +4,15 @@
       "name": "baseline_trivial",
       "intent_accuracy": 0.472,
       "intent_macro_f1": 0.1069,
+      "intent_weighted_f1": 0.3027,
+      "intent_per_class_f1": {
+        "account_access": 0.0,
+        "billing_subscription": 0.0,
+        "content_availability": 0.0,
+        "feature_request_feedback": 0.0,
+        "other": 0.6413,
+        "playback_technical": 0.0
+      },
       "intent_confusion_matrix": {
         "labels": [
           "account_access",
@@ -77,6 +86,15 @@
       "name": "baseline_simple",
       "intent_accuracy": 0.704,
       "intent_macro_f1": 0.5216,
+      "intent_weighted_f1": 0.6655,
+      "intent_per_class_f1": {
+        "account_access": 0.6538,
+        "billing_subscription": 0.7629,
+        "content_availability": 0.25,
+        "feature_request_feedback": 0.4545,
+        "other": 0.786,
+        "playback_technical": 0.2222
+      },
       "intent_confusion_matrix": {
         "labels": [
           "account_access",
@@ -148,8 +166,17 @@
     },
     {
       "name": "system_full",
-      "intent_accuracy": 0.736,
-      "intent_macro_f1": 0.5908,
+      "intent_accuracy": 0.924,
+      "intent_macro_f1": 0.8938,
+      "intent_weighted_f1": 0.9213,
+      "intent_per_class_f1": {
+        "account_access": 0.8108,
+        "billing_subscription": 0.9492,
+        "content_availability": 0.9091,
+        "feature_request_feedback": 0.8571,
+        "other": 0.944,
+        "playback_technical": 0.8929
+      },
       "intent_confusion_matrix": {
         "labels": [
           "account_access",
@@ -161,62 +188,62 @@
         ],
         "matrix": [
           [
-            11,
-            5,
+            15,
+            4,
             0,
             0,
-            5,
-            0
-          ],
-          [
-            1,
-            48,
-            0,
-            0,
-            9,
-            0
-          ],
-          [
-            0,
-            0,
-            3,
-            0,
-            3,
-            0
-          ],
-          [
-            0,
-            0,
-            0,
-            3,
-            13,
-            0
-          ],
-          [
-            1,
-            3,
             2,
-            0,
-            110,
-            2
+            0
           ],
           [
             1,
+            56,
+            0,
+            0,
             1,
+            0
+          ],
+          [
             0,
             0,
-            20,
-            9
+            5,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            12,
+            4,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            118,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            6,
+            25
           ]
         ]
       },
-      "escalation_precision": 0.7143,
-      "escalation_recall": 0.9449,
-      "escalation_f1": 0.8136,
-      "false_auto_handle_count": 7,
-      "false_auto_handle_rate": 0.0551,
-      "false_escalation_count": 48,
-      "false_escalation_rate": 0.3902,
+      "escalation_precision": 0.9071,
+      "escalation_recall": 1.0,
+      "escalation_f1": 0.9513,
+      "false_auto_handle_count": 0,
+      "false_auto_handle_rate": 0.0,
+      "false_escalation_count": 13,
+      "false_escalation_rate": 0.1057,
       "n": 250
     }
   ],

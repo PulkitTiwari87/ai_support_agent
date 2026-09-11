@@ -55,10 +55,14 @@ def compute_metrics(gold, preds, name):
     false_auto_handle = int(((y_true_esc == True) & (y_pred_esc == False)).sum())
     false_escalation = int(((y_true_esc == False) & (y_pred_esc == True)).sum())
 
+    per_class_f1 = f1_score(y_true_intent, y_pred_intent, average=None, labels=labels, zero_division=0)
+
     return {
         "name": name,
         "intent_accuracy": round(accuracy_score(y_true_intent, y_pred_intent), 4),
         "intent_macro_f1": round(f1_score(y_true_intent, y_pred_intent, average="macro", zero_division=0), 4),
+        "intent_weighted_f1": round(f1_score(y_true_intent, y_pred_intent, average="weighted", zero_division=0), 4),
+        "intent_per_class_f1": {label: round(float(f1), 4) for label, f1 in zip(labels, per_class_f1)},
         "intent_confusion_matrix": {"labels": labels, "matrix": cm.tolist()},
         "escalation_precision": round(precision_score(y_true_esc, y_pred_esc, zero_division=0), 4),
         "escalation_recall": round(recall_score(y_true_esc, y_pred_esc, zero_division=0), 4),

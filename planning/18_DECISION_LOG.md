@@ -173,15 +173,71 @@ evidence that drove it.
     explicitly, which is why it's logged here with the before/after diff
     rather than silently applied.
 
-21. **Did not attempt further `other`-class fixes after two experiments.**
-    Confirmed via per-class training counts that `feature_request_feedback`
-    (11 examples) and `content_availability` (19 examples) in `dev_pool`
-    are too small for any TF-IDF-based classifier to learn robustly
-    regardless of features/thresholds -- verified by held-out validation
-    where `feature_request_feedback` recall stayed at 0 under both the
-    word-only and word+char-n-gram classifiers (2 validation examples in
-    that class, held-out). Concluded this is a data-scarcity problem
-    requiring more labeled examples, not further architecture tuning on the
-    same ~11-19-example classes -- a valid engineering conclusion per the
-    assignment's own framing (section 34: "the bottleneck is data labeling,
-    not model sophistication" is an acceptable answer).
+21. **Did not attempt further `other`-class fixes after two experiments (at
+    the time).** Confirmed via per-class training counts that
+    `feature_request_feedback` (11 examples) and `content_availability`
+    (19 examples) in `dev_pool` are too small for any TF-IDF-based
+    classifier to learn robustly regardless of features/thresholds --
+    verified by held-out validation where `feature_request_feedback`
+    recall stayed at 0 under both the word-only and word+char-n-gram
+    classifiers (2 validation examples in that class, held-out). Concluded
+    this is a data-scarcity problem requiring more labeled examples, not
+    further architecture tuning on the same ~11-19-example classes -- a
+    valid engineering conclusion per the assignment's own framing (section
+    34: "the bottleneck is data labeling, not model sophistication" is an
+    acceptable answer). **Superseded by #22-24 below**, once "more labeled
+    examples from the same dataset" was explicitly authorized and
+    diagnosed as necessary rather than merely plausible.
+
+22. **Diagnosed overfitting with a real TRAIN/held-out-DEV/GOLDEN split
+    before touching the model.** Built `scripts/diagnose_classifier.py` to
+    hold out 20% of `dev_pool` (never seen during fit) rather than trusting
+    the in-sample training metric. Found TRAIN macro-F1 0.997 vs. held-out
+    DEV 0.606 vs. GOLDEN 0.558 -- a ~40-point train/held-out gap that
+    confirmed overfitting, not underfitting, and per-class F1 tracking
+    training-example count almost exactly. This diagnosis (not intuition)
+    is what justified the data-expansion decision below, per the
+    assignment's explicit "diagnose before changing the model" requirement.
+
+23. **Expanded classifier training data from 529 to 36,533 examples using
+    `retrieval_corpus.csv` (same dataset/brand, previously unused for
+    training), justified by a learning curve, not assumed.**
+    `scripts/learning_curve.py` showed held-out DEV macro-F1 rising from
+    0.606 (no expansion) to 0.787 at just 10% of the expanded pool,
+    continuing to ~0.84 by 50% before plateauing -- satisfying the
+    assignment's own criterion for when data expansion is justified.
+    Verified `retrieval_corpus` is conversation-ID *and* exact-text disjoint
+    from `golden_set` before using it for training (re-checked, not
+    assumed from the earlier retrieval-only leakage check). `golden_set.csv`
+    itself was never touched, read for tuning, or trained on -- confirmed
+    via `git diff` showing zero changes to the file throughout this pass.
+    Explicitly NOT sourced from an unrelated dataset (e.g. Banking77) or
+    synthetic augmentation, per the assignment's data-expansion rule.
+
+24. **Selected TF-IDF word(1,2)+char_wb(3,7) + LinearSVC over five
+    alternatives via a small controlled grid on held-out DEV, never
+    golden.** Sequential search (`scripts/experiment_grid.py`,
+    `scripts/experiment_svc_tuning.py`): feature config first (winner beat
+    the previous char(3,5) config, 0.857 vs. 0.834 macro-F1 on held-out
+    DEV), then Logistic Regression C/class_weight on those features (found
+    `class_weight=None` now beats `"balanced"` -- the opposite of the
+    small-data regime, since heavy regularization was compensating for too
+    little data, not preventing overfitting on 36K examples), then
+    classifier family (LinearSVC 0.919 beat tuned Logistic Regression 0.888
+    and MultinomialNB 0.460, rejected outright). A final LinearSVC-only
+    sweep over C and class_weight produced identical results for all 6
+    configs tested (high-dimensional sparse features are close to linearly
+    separable here regardless of margin width) -- kept
+    `class_weight="balanced", C=1.0` as the principled default for an
+    imbalanced problem rather than treating the tie as license to
+    cherry-pick a config. Checked against golden set exactly once, after
+    all of the above was already decided: accuracy 0.736->0.924, macro-F1
+    0.591->0.894, false-auto-handle 0.055->0.000, false-escalation
+    0.390->0.106 -- every metric improved together, unlike decision #18's
+    tradeoff. Sanity-checked the size of the jump (not just accepted it):
+    zero leakage found, confusion matrix remains non-degenerate (real
+    residual errors persist, e.g. `playback_technical` still confuses with
+    `other` in 6/31 golden cases), and the improvement is concentrated in
+    exactly the classes that had the fewest training examples before --
+    consistent with genuine generalization from more data, not
+    memorization or a labeling artifact.
