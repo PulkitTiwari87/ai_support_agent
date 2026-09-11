@@ -7,3 +7,4 @@ data/processed/retrieval_corpus.csv
 *.egg-info/
 .pytest_cache/
 scratch_*.txt
+data/processed/*.csv

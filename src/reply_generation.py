@@ -42,11 +42,14 @@ def generate_llm(customer_msg: str, evidence: list[dict]) -> dict:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
-
+    # Check evidence before attempting to import anthropic to avoid unnecessary import errors
     if not evidence or evidence[0]["similarity"] < LOW_EVIDENCE_SIMILARITY:
         return {"draft_reply": None, "grounded": False, "evidence_used": [], "method": "llm"}
+    try:
+        import anthropic
+    except ModuleNotFoundError as e:
+        raise RuntimeError("anthropic package is required for LLM generation but is not installed") from e
+    client = anthropic.Anthropic(api_key=api_key)
 
     evidence_text = "\n".join(
         f"- Past customer issue: {e['customer_msg']}\n  Past Spotify reply: {e['support_reply']}"
